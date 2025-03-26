@@ -1,0 +1,7 @@
+Flask
+openai
+PyPDF2
+python-docx
+Werkzeug
+pymssql
+pdfkit
