@@ -59,14 +59,16 @@
 
     /* Upload Container */
     .upload-card {
-        background: var(--foreground);
+        background: white;
         border-radius: var(--border-radius);
         box-shadow: var(--box-shadow);
         border: none;
         overflow: hidden;
         margin-bottom: 2rem;
+        z-index: 1;
+        position: relative;
     }
-
+    
     .card-header {
         background-color: var(--foreground);
         border-bottom: 1px solid var(--border);
@@ -247,10 +249,13 @@
         background-color: var(--primary-color);
         border: none;
         box-shadow: 0 2px 4px rgba(0, 214, 108, 0.2);
+        --bs-btn-disabled-bg: #2e6b38;
+        position: relative;
     }
+    
 
     .btn-primary:hover {
-        background-color: var(--primary-dark);
+        background-color: var(--wortell-dark-green);
         transform: translateY(-1px);
         box-shadow: 0 4px 8px rgba(0, 214, 108, 0.3);
     }
@@ -438,7 +443,6 @@
     .spinner-border {
         color: var(--primary-color) !important;
     }
-
     /* Welcome Banner */
     .welcome-banner {
         background: linear-gradient(135deg, var(--wortell-green) 0%, #7cd3c7 100%);
@@ -448,7 +452,7 @@
         margin-bottom: 2rem;
         box-shadow: var(--box-shadow);
     }
-
+   
     .welcome-banner h2 {
         font-weight: 600;
         margin-bottom: 1rem;
@@ -548,7 +552,7 @@
                 </div>
                 
                 <div class="d-flex justify-content-center button-group">
-                    <div>
+                    <div class="card">
                         <button type="button" class="btn btn-primary" id="upload-btn" disabled>
                             <i class="bi bi-cpu"></i> CV's Verwerken
                         </button>

@@ -1479,5 +1479,41 @@ def cleanup_certificates():
 # Run this once to clean up the database
 cleanup_certificates()
 
+@app.route('/add-candidate-skill', methods=['POST'])
+def add_candidate_skill():
+    try:
+        data = request.json
+        candidate_id = data['candidate_id']
+        # Escape single quotes in skill_name to prevent SQL injection
+        skill_name = data['skill_name'].replace("'", "''")
+        years_experience = float(data['years_experience'])
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Using f-string with proper escaping
+        query = f"""
+            INSERT INTO [cv-analysis-db].dbo.skills 
+            (candidate_id, skill_name, years_experience) 
+            VALUES 
+            ('{candidate_id}', N'{skill_name}', {years_experience})
+        """
+        
+        cursor.execute(query)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        print(f"Error adding skill: {e}")
+        print(f"Input data: candidate_id={data.get('candidate_id')}, "
+              f"skill_name={data.get('skill_name')}, "
+              f"years_experience={data.get('years_experience')}")
+        # Print the actual query for debugging
+        print(f"Executed query: {query}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

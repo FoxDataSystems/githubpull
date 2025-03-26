@@ -831,7 +831,20 @@
                                                                                 {{ 'Gevonden' if detail.match else 'Niet Gevonden' }}
                                                                             </span>
                                                                         </td>
-                                                                        <td class="details-reason">{{ detail.reason }}</td>
+                                                                        <td class="details-reason d-flex justify-content-between align-items-center">
+                                                                            <span>{{ detail.reason }}</span>
+                                                                            {% if not detail.match %}
+                                                                                <button class="btn btn-sm btn-outline-primary add-skill-btn" 
+                                                                                        data-candidate-id="{{ match.candidate_id }}"
+                                                                                        data-skill-name="{{ detail.skill_name }}"
+                                                                                        data-years="{{ detail.type == 'Required' and 
+                                                                                                     vacancy_skills.required_skills|selectattr('skill_name', 'equalto', detail.skill_name)|map(attribute='years_experience')|first or 
+                                                                                                     vacancy_skills.nice_to_have_skills|selectattr('skill_name', 'equalto', detail.skill_name)|map(attribute='years_experience')|first or 
+                                                                                                     0 }}">
+                                                                                    <i class="bi bi-plus-circle me-1"></i>Add to Profile
+                                                                                </button>
+                                                                            {% endif %}
+                                                                        </td>
                                                                     </tr>
                                                                 {% endfor %}
                                                             </tbody>
@@ -1294,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 
                                 <div class="d-flex justify-content-between">
                                     <div class="d-flex gap-2">
-                                        <a href="/view-candidate/${match.candidate_id}" class="btn btn-sm btn-outline-primary">
+                                        <a href="/candidate/${match.candidate_id}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye me-1"></i>Profiel Bekijken
                                         </a>
                                         <a href="/write-cover-letter/${match.candidate_id}" class="btn btn-sm btn-outline-success">
@@ -1333,7 +1346,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                 ${detail.match ? 'Gevonden' : 'Niet Gevonden'}
                                                             </span>
                                                         </td>
-                                                        <td class="details-reason">${detail.reason}</td>
+                                                        <td class="details-reason d-flex justify-content-between align-items-center">
+                                                            <span>${detail.reason}</span>
+                                                            ${!detail.match ? `
+                                                                <button class="btn btn-sm btn-outline-primary add-skill-btn" 
+                                                                        data-candidate-id="${match.candidate_id}"
+                                                                        data-skill-name="${detail.skill_name}"
+                                                                        data-years="${detail.type === 'Required' ? 
+                                                                                    requiredSkills.find(s => s.skill_name === detail.skill_name)?.years_experience || 0 : 
+                                                                                    niceToHaveSkills.find(s => s.skill_name === detail.skill_name)?.years_experience || 0}">
+                                                                    <i class="bi bi-plus-circle me-1"></i>Add to Profile
+                                                                </button>
+                                                            ` : ''}
+                                                        </td>
                                                     </tr>
                                                 `).join('')}
                                             </tbody>
@@ -1434,6 +1459,60 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') {
             e.preventDefault();
             document.getElementById('update-skill').click();
+        }
+    });
+
+    // Add event handler for the add skill buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.add-skill-btn')) {
+            const btn = e.target.closest('.add-skill-btn');
+            const candidateId = btn.dataset.candidateId;
+            const skillName = btn.dataset.skillName;
+            const years = btn.dataset.years;
+
+            // Disable button and show loading state
+            btn.disabled = true;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+
+            // Send request to add skill
+            fetch('/add-candidate-skill', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    candidate_id: candidateId,
+                    skill_name: skillName,
+                    years_experience: years
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the UI to show the skill is now matched
+                    const row = btn.closest('tr');
+                    const statusBadge = row.querySelector('.status-badge');
+                    statusBadge.classList.remove('bg-danger');
+                    statusBadge.classList.add('bg-success');
+                    statusBadge.textContent = 'Gevonden';
+                    
+                    // Update the reason text and remove the button
+                    const detailsCell = btn.closest('td');
+                    detailsCell.innerHTML = `<span>Skill added to candidate's profile: ${skillName} (${years} years)</span>`;
+                } else {
+                    // Show error and restore button
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                    alert('Failed to add skill. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                alert('An error occurred. Please try again.');
+            });
         }
     });
 });

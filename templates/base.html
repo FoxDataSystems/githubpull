@@ -17,18 +17,13 @@
     <style>
         :root {
             --primary-color: #00D66C;
-            --primary-dark: #00b85d;
-            --primary-light: #33db84;
-            --secondary-color: #6C1F85;
-            --secondary-dark: #591a6d;
-            --secondary-light: #8229a0;
-            --light-bg: #f8f9fa;
-            --dark-bg: #212529;
-            --text-color: #2c2c2c;
-            --light-text: #f8f9fa;
-            --border-radius: 8px;
-            --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            --transition: all 0.3s ease;
+            --primary-hover: #00bf61;
+            --nav-height: 64px;
+            --border-subtle: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --bg-subtle: #f9fafb;
+            --transition: all 0.2s ease;
         }
 
         body {
@@ -39,34 +34,72 @@
         }
 
         .navbar {
-            box-shadow: var(--box-shadow);
-            background-color: #fff !important;
-            padding: 12px 0;
-            margin-bottom: 2rem;
+            height: var(--nav-height);
+            border-bottom: 1px solid var(--border-subtle);
+            background: white;
+            padding: 0;
         }
 
         .navbar-brand {
+            font-size: 1.25rem;
             font-weight: 600;
-            letter-spacing: 0.5px;
-            color: var(--text-color);
+            color: var(--text-primary);
+            padding: 0.5rem 0;
+        }
+
+        .nav-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            height: 100%;
+        }
+
+        .nav-menu {
+            height: 100%;
+            display: flex;
+            gap: 0.5rem;
         }
 
         .nav-link {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            color: var(--text-secondary);
             font-weight: 500;
-            color: var(--text-color);
-            opacity: 0.8;
+            font-size: 0.9375rem;
+            border-bottom: 2px solid transparent;
             transition: var(--transition);
-            padding: 0.5rem 1rem !important;
         }
 
         .nav-link:hover {
-            color: var(--primary-color) !important;
-            opacity: 1;
+            color: var(--text-primary);
         }
 
         .nav-link.active {
-            color: var(--primary-color) !important;
-            opacity: 1;
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        @media (max-width: 991px) {
+            .navbar {
+                height: auto;
+                padding: 0.5rem 0;
+            }
+
+            .nav-menu {
+                padding: 1rem 0;
+            }
+
+            .nav-link {
+                padding: 0.75rem 1rem;
+                border-radius: 6px;
+            }
+
+            .nav-link.active {
+                background-color: var(--bg-subtle);
+                border-bottom: none;
+            }
         }
 
         .main-container {
@@ -78,43 +111,41 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">CV Analyzer</a>
+    <nav class="navbar navbar-expand-lg">
+        <div class="nav-container container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                Skill & Ambition Tracker
+            </a>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav nav-menu ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-                            Dashboard
-                        </a>
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" 
+                           href="{{ url_for('dashboard') }}">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'view_candidates' %}active{% endif %}" href="{{ url_for('view_candidates') }}">
-                            Smarties
-                        </a>
+                        <a class="nav-link {% if request.endpoint == 'view_candidates' %}active{% endif %}" 
+                           href="{{ url_for('view_candidates') }}">Smarties</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'upload_page' %}active{% endif %}" href="{{ url_for('upload_page') }}">
-                            Upload CV
-                        </a>
+                        <a class="nav-link {% if request.endpoint == 'upload_page' %}active{% endif %}" 
+                           href="{{ url_for('upload_page') }}">Upload CV</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'vacancy_match' %}active{% endif %}" href="{{ url_for('vacancy_match') }}">
-                            Opdracht Match
-                        </a>
+                        <a class="nav-link {% if request.endpoint == 'vacancy_match' %}active{% endif %}" 
+                           href="{{ url_for('vacancy_match') }}">Opdracht Match</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'skill_search' %}active{% endif %}" href="{{ url_for('skill_search') }}">
-                           Skill Search
-                        </a>
+                        <a class="nav-link {% if request.endpoint == 'skill_search' %}active{% endif %}" 
+                           href="{{ url_for('skill_search') }}">Skill Search</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'outdated_candidates' %}active{% endif %}" href="{{ url_for('outdated_candidates') }}">
-                            Outdated Profiles
-                        </a>
+                        <a class="nav-link {% if request.endpoint == 'outdated_candidates' %}active{% endif %}" 
+                           href="{{ url_for('outdated_candidates') }}">Outdated Profiles</a>
                     </li>
                 </ul>
             </div>
