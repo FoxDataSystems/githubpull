@@ -11,7 +11,8 @@
         --wortell-green: #00D66C;
         --wortell-dark-green: #00B85D;
         --wortell-light-green: #33DB84;
-        --wortell-purple: #6C1F85;
+        --wortell-purple: #7B23F4;
+        --wortell-light-purple: #9D53FF;
         --wortell-gray: #F3F3F3;
         --wortell-dark-gray: #333333;
         
@@ -79,15 +80,15 @@
     /* Cards */
     .card {
         border-radius: var(--border-radius);
-        box-shadow: var(--box-shadow);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         border: none;
         margin-bottom: 1.5rem;
-        overflow: hidden;
-        transition: var(--transition);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     
     .card:hover {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     }
     
     .card-header {
@@ -133,29 +134,59 @@
     
     /* Buttons */
     .btn {
-        border-radius: var(--border-radius);
-        padding: 0.6rem 1.25rem;
+        border-radius: 6px;
+        padding: 0.625rem 1.25rem;
         font-weight: 500;
-        transition: var(--transition);
+        transition: all 0.2s ease;
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
     }
     
     .btn-primary {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        color: white;
-        box-shadow: 0 2px 4px rgba(0, 214, 108, 0.2);
+        background: var(--wortell-dark-green);
+        border: none;
+        box-shadow: 0 2px 6px rgba(0, 214, 108, 0.2);
     }
     
-    .btn-primary:hover, .btn-primary:focus {
-        background-color: var(--primary-dark);
-        border-color: var(--primary-dark);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 214, 108, 0.3);
+    .btn-primary:hover {
+        background: var(--wortell-light-green);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 214, 108, 0.3);
     }
-    
+    .btn-profiel {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+        background-color: var(--wortell-purple);
+        border-color: var(--wortell-purple);
+        color: var(--light-text);
+    }
+    .btn-profiel:hover {
+        background-color: var(--wortell-light-purple);
+        color: var(--light-text);
+    }
+    .btn-cover-letter{
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+        background-color: var(--wortell-gray);
+        border-color: var(--wortell-light-green);
+        color: var(--dark-text);
+    }
+    .btn-cover-letter:hover {
+        background-color: var(--wortell-light-green);
+        color: var(--dark-text);
+    }
+    .btn-details{
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+        background-color: var(--wortell-dark-green);
+        border-color: var(--wortell-dark-green);
+        color: var(--light-text);
+    }
+    .btn-details:hover {
+        background-color: var(--wortell-light-green);
+        color: var(--light-text);
+    }
     .btn-secondary {
         background-color: var(--secondary-color);
         border-color: var(--secondary-color);
@@ -171,15 +202,15 @@
     }
     
     .btn-info {
-        background-color: var(--secondary-light);
-        border-color: var(--secondary-light);
+        background-color: var(--wortell-light-green);
+        border-color: var(--wortell-light-green);
         color: white !important;
         box-shadow: 0 2px 4px rgba(80, 160, 210, 0.2);
     }
     
     .btn-info:hover, .btn-info:focus {
-        background-color: var(--secondary-color);
-        border-color: var(--secondary-color);
+        background-color: var(--wortell-light-green);
+        border-color: var(--wortell-light-green);
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(80, 160, 210, 0.3);
     }
@@ -211,15 +242,15 @@
     /* Progress Bars */
     .progress {
         height: 8px;
-        border-radius: 4px;
-        background-color: #e9ecef;
-        margin: 4px 0;
+        border-radius: 6px;
+        background-color: #f0f0f0;
+        margin: 6px 0;
         overflow: hidden;
     }
     
     .progress-bar {
-        border-radius: 4px;
-        transition: width 0.6s ease;
+        border-radius: 6px;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .progress-bar.bg-primary {
@@ -232,10 +263,11 @@
     
     /* Match Score */
     .match-score {
-        font-size: 2rem;
+        font-size: 2.25rem;
         font-weight: 700;
         color: var(--primary-color);
-        line-height: 1.2;
+        line-height: 1;
+        margin-bottom: 0.25rem;
     }
     
     /* Skills Container */
@@ -244,7 +276,7 @@
         overflow: hidden;
         margin-bottom: 1.5rem;
         border: 1px solid #e9ecef;
-        box-shadow: var(--box-shadow);
+        /* box-shadow: var(--box-shadow); */
         background-color: white;
     }
     
@@ -291,10 +323,10 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.875rem 1.25rem;
+        padding: 1rem 1.25rem;
         border-bottom: 1px solid rgba(0,0,0,0.05);
         background-color: #fff;
-        transition: background-color 0.2s;
+        transition: all 0.2s ease;
     }
     
     .skill-item:last-child {
@@ -303,6 +335,7 @@
     
     .skill-item:hover {
         background-color: rgba(0,0,0,0.02);
+        transform: translateX(4px);
     }
     
     .skill-info {
@@ -393,7 +426,7 @@
         padding: 0.75rem 2.5rem;
         font-weight: 600;
         border-radius: var(--border-radius);
-        background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
+        background: var(--primary-dark);
         border: none;
         box-shadow: 0 4px 12px rgba(0, 214, 108, 0.25);
     }
@@ -401,23 +434,23 @@
     .btn-apply:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 18px rgba(0, 214, 108, 0.35);
-        background: linear-gradient(45deg, var(--primary-dark), var(--primary-color));
+        background: var(--primary-color);
     }
     
     /* Candidate Cards */
     .candidate-card {
         border-radius: var(--border-radius);
         background-color: white;
-        box-shadow: var(--box-shadow);
-        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        padding: 1.75rem;
         height: 100%;
-        transition: var(--transition);
-        border-top: 4px solid var(--primary-color);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-top: 3px solid var(--primary-color);
     }
     
     .candidate-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
     }
     
     /* Scrollbar styling */
@@ -539,92 +572,273 @@
         color: rgba(255, 255, 255, 0.6);
     }
     
-    /* Condensed details table styling */
+    /* Enhanced Table Styling */
     .details-table {
         border-collapse: separate;
         border-spacing: 0;
         width: 100%;
-        font-size: 0.875rem; /* Smaller font size */
+        margin: 0;
+        background: white;
+        font-size: 0.95rem;
     }
     
-    .details-table th, 
-    .details-table td {
-        padding: 0.6rem 0.75rem; /* Reduced padding */
-        vertical-align: middle;
+    .details-table thead {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 1;
     }
     
     .details-table th {
+        background-color: #f8f9fa;
+        padding: 1rem 1.25rem;
         font-weight: 600;
-        color: var(--text-color);
-        background-color: var(--wortell-gray);
-        border-bottom: 1px solid rgba(0,0,0,0.05);
-        font-size: 0.85rem;
-    }
-    
-    .details-table tbody tr {
-        transition: background-color 0.15s ease;
-    }
-    
-    .details-table tbody tr:hover {
-        background-color: rgba(0,0,0,0.02);
+        color: #2c3e50;
+        border-bottom: 2px solid #e9ecef;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
     }
     
     .details-table td {
-        border-bottom: 1px solid rgba(0,0,0,0.05);
-    }
-    
-    .details-table tr:last-child td {
-        border-bottom: none;
-    }
-    
-    /* Condensed status badges styling */
-    .status-badge {
-        padding: 0.35rem 0.5rem; /* Smaller padding */
-        font-weight: 500;
-        display: inline-block;
-        text-align: center;
-        min-width: 90px;
-        font-size: 0.8rem;
-    }
-    
-    /* Condensed skill type styling */
-    .skill-type {
-        font-weight: 500;
-        color: var(--text-color);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.85rem;
-    }
-    
-    .skill-type i.required {
-        color: var(--primary-color);
-    }
-    
-    .skill-type i.nice {
-        color: var(--secondary-color);
-    }
-    
-    /* Condensed skill name styling */
-    .skill-name-cell {
-        font-weight: 600;
-        color: var(--text-color);
-        font-size: 0.85rem;
-    }
-    
-    /* Condensed skill details/reason cell */
-    .details-reason {
-        color: #6c757d;
-        font-size: 0.8rem;
+        padding: 1.25rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #edf2f7;
+        color: #4a5568;
         line-height: 1.4;
     }
     
-    /* Details box styling */
+    .details-table tbody tr:hover {
+        background-color: #f8fafc;
+        transition: background-color 0.2s ease;
+    }
+    
+    /* Skill name styling */
+    .skill-name-cell {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 1rem;
+    }
+    
+    /* Status badge styling */
+    .status-badge {
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: inline-block;
+        min-width: 100px;
+        text-align: center;
+    }
+    
+    .status-badge.bg-success {
+        background-color: #def7ec !important;
+        color: #046c4e;
+    }
+    
+    .status-badge.bg-danger {
+        background-color: #fde8e8 !important;
+        color: #c81e1e;
+    }
+    
+    /* Skill type styling */
+    .skill-type {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .skill-type i.required {
+        color: #00D66C;
+        font-size: 1rem;
+    }
+    
+    .skill-type i.nice {
+        color: #0078D4;
+        font-size: 1rem;
+    }
+    
+    /* Details box container */
     .details-box {
-        border-radius: var(--border-radius);
-        box-shadow: var(--box-shadow);
-        margin-top: 1rem;
+        border-radius: 12px;
+        border: 1px solid #e9ecef;
         overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Add to Profile button styling */
+    .add-skill-btn {
+        background-color: var(--wortell-purple);
+        color: var(--light-text);
+        border: 1px solid var(--wortell-purple);
+        padding: 0.5rem 1.25rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(108, 31, 133, 0.1);
+    }
+    
+    .add-skill-btn:hover {
+        background-color: var(--wortell-light-purple);
+        color: var(--light-text);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(108, 31, 133, 0.2);
+    }
+    
+    /* Details reason styling */
+    .details-reason {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+    }
+    
+    .details-reason span {
+        color: #4a5568;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        flex: 1;
+    }
+    
+    /* Table scrollbar styling */
+    .details-box {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .details-box::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .details-box::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .details-box::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 4px;
+    }
+    
+    .details-box::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+    }
+
+    /* Skills Overview Layout */
+    .skills-overview {
+        padding: 1rem;
+        background: #fff;
+        border-radius: 12px;
+    }
+
+    .skills-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    /* Skill Card Design */
+    .skill-card {
+        background: white;
+        border-radius: 1px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid #edf2f7;
+        overflow: hidden;
+    }
+
+    .skill-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .skill-card.matched {
+        border-left: 4px solid var(--wortell-green);
+    }
+
+    .skill-card.unmatched {
+        border-left: 4px solid #e53e3e;
+    }
+
+    /* Skill Card Header */
+    .skill-card-header {
+        padding: 0.4rem 1rem 0.21rem 0.5rem;
+        border-bottom: 1px solid #edf2f7;
+        background: #f8fafc;
+    }
+
+    .skill-main-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .skill-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+    }
+
+    .skill-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    /* Skill Type and Status Badges */
+    .skill-type-badge {
+        padding: 0.2rem 0.6rem;
+        font-size: 0.75rem;
+    }
+
+    .skill-type-badge.required {
+        background-color: #e6ffec;
+        color: #00B85D;
+    }
+
+    .skill-type-badge.nice {
+        background-color: #e6f6ff;
+        color: #0078D4;
+    }
+
+    .skill-status {
+        font-size: 0.8rem;
+    }
+
+    .skill-status.matched {
+        color: #00B85D;
+    }
+
+    .skill-status.unmatched {
+        color: #e53e3e;
+    }
+
+    /* Skill Card Body */
+    .skill-card-body {
+        padding: 0.75rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .skill-description {
+        font-size: 0.9rem;
+        line-height: 1.4;
+        margin: 0;
+    }
+
+    /* Add Skill Button */
+    .btn-add-skill {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8rem;
     }
 </style>
 {% endblock %}
@@ -706,7 +920,7 @@
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="badge bg-info" id="nice-count">0</span>
-                                                <button type="button" class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#addNiceSkillModal">
+                                                <button type="button" class="btn btn-sm btn-primary text-white" data-bs-toggle="modal" data-bs-target="#addNiceSkillModal">
                                                     <i class="bi bi-plus-lg"></i> Toevoegen
                                                 </button>
                                             </div>
@@ -792,63 +1006,57 @@
                                                 
                                                 <div class="d-flex justify-content-between">
                                                     <div class="d-flex gap-2">
-                                                        <a href="{{ url_for('view_candidate', candidate_id=match.candidate_id) }}" class="btn btn-sm btn-outline-primary">
-                                                            <i class="bi bi-eye me-1"></i>Profiel Bekijken
+                                                        <a href="{{ url_for('view_candidate', candidate_id=match.candidate_id) }}" class="btn btn-profiel">
+                                                            Profiel Bekijken
                                                         </a>
-                                                        <a href="{{ url_for('write_cover_letter', candidate_id=match.candidate_id) }}" class="btn btn-sm btn-outline-success">
-                                                            <i class="bi bi-pencil-square me-1"></i>Cover Letter Schrijven
+                                                        <a href="{{ url_for('write_cover_letter', candidate_id=match.candidate_id) }}" class="btn btn-cover-letter">
+                                                            Cover Letter Schrijven
                                                         </a>
                                                     </div>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" 
+                                                    <button type="button" class="btn btn-details" data-bs-toggle="collapse" 
                                                             data-bs-target="#details-{{ match.candidate_id }}">
-                                                        <i class="bi bi-list-check me-1"></i>Details Bekijken
+                                                        Details Bekijken
                                                     </button>
                                                 </div>
                                                 
                                                 <div class="collapse mt-3" id="details-{{ match.candidate_id }}">
-                                                    <div class="details-box">
-                                                        <table class="table table-hover mb-0 details-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th width="25%">Vaardigheid</th>
-                                                                    <th width="15%">Type</th>
-                                                                    <th width="15%">Status</th>
-                                                                    <th width="45%">Details</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {% for detail in match.details|sort(attribute='match', reverse=True) %}
-                                                                    <tr>
-                                                                        <td class="skill-name-cell">{{ detail.skill_name }}</td>
-                                                                        <td>
-                                                                            <span class="skill-type">
-                                                                                <i class="bi bi-{{ 'star-fill required' if detail.type == 'Required' else 'plus-circle nice' }}"></i>
-                                                                                {{ 'Vereist' if detail.type == 'Required' else 'Gewenst' }}
+                                                    <div class="skills-overview">
+                                                        <div class="skills-grid">
+                                                            {% for detail in match.details|sort(attribute='match', reverse=True) %}
+                                                            <div class="skill-card {{ 'matched' if detail.match else 'unmatched' }}">
+                                                                <div class="skill-card-header">
+                                                                    <div class="skill-main-info">
+                                                                        <h3 class="skill-title">{{ detail.skill_name }}</h3>
+                                                                        <div class="skill-meta">
+                                                                            <span class="skill-type-badge {{ 'required' if detail.type == 'Required' else 'nice' }}">
+                                                                                <i class="bi bi-{{ 'star-fill' if detail.type == 'Required' else 'plus-circle' }}"></i>
+                                                                                {{ 'Required' if detail.type == 'Required' else 'Nice to have' }}
                                                                             </span>
-                                                                        </td>
-                                                                        <td>
-                                                                            <span class="badge status-badge {{ 'bg-success' if detail.match else 'bg-danger' }}">
-                                                                                {{ 'Gevonden' if detail.match else 'Niet Gevonden' }}
+                                                                            <span class="skill-status {{ 'matched' if detail.match else 'unmatched' }}">
+                                                                                <i class="bi bi-{{ 'check-circle-fill' if detail.match else 'x-circle-fill' }}"></i>
+                                                                                {{ 'Found' if detail.match else 'Not Found' }}
                                                                             </span>
-                                                                        </td>
-                                                                        <td class="details-reason d-flex justify-content-between align-items-center">
-                                                                            <span>{{ detail.reason }}</span>
-                                                                            {% if not detail.match %}
-                                                                                <button class="btn btn-sm btn-outline-primary add-skill-btn" 
-                                                                                        data-candidate-id="{{ match.candidate_id }}"
-                                                                                        data-skill-name="{{ detail.skill_name }}"
-                                                                                        data-years="{{ detail.type == 'Required' and 
-                                                                                                     vacancy_skills.required_skills|selectattr('skill_name', 'equalto', detail.skill_name)|map(attribute='years_experience')|first or 
-                                                                                                     vacancy_skills.nice_to_have_skills|selectattr('skill_name', 'equalto', detail.skill_name)|map(attribute='years_experience')|first or 
-                                                                                                     0 }}">
-                                                                                    <i class="bi bi-plus-circle me-1"></i>Add to Profile
-                                                                                </button>
-                                                                            {% endif %}
-                                                                        </td>
-                                                                    </tr>
-                                                                {% endfor %}
-                                                            </tbody>
-                                                        </table>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="skill-card-body">
+                                                                    <p class="skill-description">{{ detail.reason }}</p>
+                                                                    {% if not detail.match %}
+                                                                    <button class="btn btn-add-skill add-skill-btn" 
+                                                                            data-candidate-id="{{ match.candidate_id }}"
+                                                                            data-skill-name="{{ detail.skill_name }}"
+                                                                            data-years="{{ detail.type == 'Required' and 
+                                                                                         vacancy_skills.required_skills|selectattr('skill_name', 'equalto', detail.skill_name)|map(attribute='years_experience')|first or 
+                                                                                         vacancy_skills.nice_to_have_skills|selectattr('skill_name', 'equalto', detail.skill_name)|map(attribute='years_experience')|first or 
+                                                                                         0 }}">
+                                                                        <i class="bi bi-plus-lg"></i>
+                                                                        Toevoegen aan profiel
+                                                                    </button>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                            {% endfor %}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1321,48 +1529,42 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 
                                 <div class="collapse mt-3" id="details-${match.candidate_id}">
-                                    <div class="details-box">
-                                        <table class="table table-hover mb-0 details-table">
-                                            <thead>
-                                                <tr>
-                                                    <th width="25%">Vaardigheid</th>
-                                                    <th width="15%">Type</th>
-                                                    <th width="15%">Status</th>
-                                                    <th width="45%">Details</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                ${sortedDetails.map(detail => `
-                                                    <tr>
-                                                        <td class="skill-name-cell">${detail.skill_name}</td>
-                                                        <td>
-                                                            <span class="skill-type">
-                                                                <i class="bi bi-${detail.type === 'Required' ? 'star-fill required' : 'plus-circle nice'}"></i>
-                                                                ${detail.type === 'Required' ? 'Vereist' : 'Gewenst'}
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <span class="badge status-badge ${detail.match ? 'bg-success' : 'bg-danger'}">
-                                                                ${detail.match ? 'Gevonden' : 'Niet Gevonden'}
-                                                            </span>
-                                                        </td>
-                                                        <td class="details-reason d-flex justify-content-between align-items-center">
-                                                            <span>${detail.reason}</span>
-                                                            ${!detail.match ? `
-                                                                <button class="btn btn-sm btn-outline-primary add-skill-btn" 
-                                                                        data-candidate-id="${match.candidate_id}"
-                                                                        data-skill-name="${detail.skill_name}"
-                                                                        data-years="${detail.type === 'Required' ? 
-                                                                                    requiredSkills.find(s => s.skill_name === detail.skill_name)?.years_experience || 0 : 
-                                                                                    niceToHaveSkills.find(s => s.skill_name === detail.skill_name)?.years_experience || 0}">
-                                                                    <i class="bi bi-plus-circle me-1"></i>Add to Profile
-                                                                </button>
-                                                            ` : ''}
-                                                        </td>
-                                                    </tr>
-                                                `).join('')}
-                                            </tbody>
-                                        </table>
+                                    <div class="skills-overview">
+                                        <div class="skills-grid">
+                                            ${sortedDetails.map(detail => `
+                                                <div class="skill-card ${detail.match ? 'matched' : 'unmatched'}">
+                                                    <div class="skill-card-header">
+                                                        <div class="skill-main-info">
+                                                            <h3 class="skill-title">${detail.skill_name}</h3>
+                                                            <div class="skill-meta">
+                                                                <span class="skill-type-badge ${detail.type === 'Required' ? 'required' : 'nice'}">
+                                                                    <i class="bi bi-${detail.type === 'Required' ? 'star-fill' : 'plus-circle'}"></i>
+                                                                    ${detail.type === 'Required' ? 'Required' : 'Nice to have'}
+                                                                </span>
+                                                                <span class="skill-status ${detail.match ? 'matched' : 'unmatched'}">
+                                                                    <i class="bi bi-${detail.match ? 'check-circle-fill' : 'x-circle-fill'}"></i>
+                                                                    ${detail.match ? 'Found' : 'Not Found'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="skill-card-body">
+                                                        <p class="skill-description">${detail.reason}</p>
+                                                        ${!detail.match ? `
+                                                            <button class="btn btn-add-skill add-skill-btn" 
+                                                                    data-candidate-id="${match.candidate_id}"
+                                                                    data-skill-name="${detail.skill_name}"
+                                                                    data-years="${detail.type === 'Required' ? 
+                                                                                requiredSkills.find(s => s.skill_name === detail.skill_name)?.years_experience || 0 : 
+                                                                                niceToHaveSkills.find(s => s.skill_name === detail.skill_name)?.years_experience || 0}">
+                                                                <i class="bi bi-plus-lg"></i>
+                                                                Add to Profile
+                                                            </button>
+                                                        ` : ''}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1462,7 +1664,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Add event handler for the add skill buttons
+    // Update the event handler for add skill buttons
     document.addEventListener('click', function(e) {
         if (e.target.closest('.add-skill-btn')) {
             const btn = e.target.closest('.add-skill-btn');
@@ -1490,16 +1692,22 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update the UI to show the skill is now matched
-                    const row = btn.closest('tr');
-                    const statusBadge = row.querySelector('.status-badge');
-                    statusBadge.classList.remove('bg-danger');
-                    statusBadge.classList.add('bg-success');
-                    statusBadge.textContent = 'Gevonden';
+                    // Find the skill card
+                    const skillCard = btn.closest('.skill-card');
                     
-                    // Update the reason text and remove the button
-                    const detailsCell = btn.closest('td');
-                    detailsCell.innerHTML = `<span>Skill added to candidate's profile: ${skillName} (${years} years)</span>`;
+                    // Update the card's status
+                    skillCard.classList.remove('unmatched');
+                    skillCard.classList.add('matched');
+                    
+                    // Update the status badge
+                    const statusSpan = skillCard.querySelector('.skill-status');
+                    statusSpan.classList.remove('unmatched');
+                    statusSpan.classList.add('matched');
+                    statusSpan.innerHTML = '<i class="bi bi-check-circle-fill"></i>Found';
+                    
+                    // Update the description and remove the button
+                    const cardBody = skillCard.querySelector('.skill-card-body');
+                    cardBody.innerHTML = `<p class="skill-description">Skill added to candidate's profile: ${skillName} (${years} years)</p>`;
                 } else {
                     // Show error and restore button
                     btn.disabled = false;

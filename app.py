@@ -902,7 +902,7 @@ def vacancy_match():
                                 'skill_name': skill_name,
                                 'type': 'Required',
                                 'match': True,
-                                'reason': f"Candidate has {best_years} years of {best_match}, required {req_years} years."
+                                'reason': f"Kandidaat heeft {best_years} ervaring met {best_match}, gevraagd: {req_years} jaar."
                             })
                         else:
                             required_match_score += 0.5
@@ -910,14 +910,14 @@ def vacancy_match():
                                 'skill_name': skill_name,
                                 'type': 'Required',
                                 'match': False,
-                                'reason': f"Candidate has {best_years} years of {best_match}, required {req_years} years."
+                                'reason': f"Kandidaat heeft  {best_years} ervaring met {best_match}, gevraagd: {req_years} jaar."
                             })
                     else:
                         details.append({
                             'skill_name': skill_name,
                             'type': 'Required',
                             'match': False,
-                            'reason': "Skill not found in candidate's profile."
+                            'reason': "Vaardigheid niet gevonden in kandidaat's profiel."
                         })
                 
                 # Check nice-to-have skills
@@ -936,7 +936,7 @@ def vacancy_match():
                                     'skill_name': skill_name,
                                     'type': 'Nice to Have',
                                     'match': True,
-                                    'reason': f"Candidate has {cand_years} years, preferred {req_years} years."
+                                    'reason': f"Kandidaat heeft {cand_years} jaar ervaring, gevraagd: {req_years} jaar."
                                 })
                             else:
                                 nice_to_have_match_score += 0.5
@@ -944,7 +944,7 @@ def vacancy_match():
                                     'skill_name': skill_name,
                                     'type': 'Nice to Have',
                                     'match': False,
-                                    'reason': f"Candidate has {cand_years} years, preferred {req_years} years."
+                                    'reason': f"Kandidaat heeft {cand_years} jaar ervaring, preferred {req_years} jaar."
                                 })
                             break
                     
@@ -953,7 +953,7 @@ def vacancy_match():
                             'skill_name': skill_name,
                             'type': 'Nice to Have',
                             'match': False,
-                            'reason': "Skill not found in candidate's profile."
+                            'reason': "Vaardigheid niet gevonden in kandidaat's profiel."
                         })
                 
                 # Calculate percentages
@@ -1096,7 +1096,7 @@ def vacancy_match():
                             'skill_name': skill_name,
                             'type': 'Required',
                             'match': True,
-                            'reason': f"Candidate has {best_years} years of {best_match}, required {req_years} years."
+                            'reason': f"Kandidaat heeft {best_years} jaar ervaring met {best_match}, gevraagd: {req_years} jaar."
                         })
                     else:
                         required_match_score += 0.5
@@ -1104,14 +1104,14 @@ def vacancy_match():
                             'skill_name': skill_name,
                             'type': 'Required',
                             'match': False,
-                            'reason': f"Candidate has {best_years} years of {best_match}, required {req_years} years."
+                            'reason': f"Kandidaat heeft {best_years} jaar ervaring met {best_match}, gevraagd: {req_years} jaar."
                         })
                 else:
                     details.append({
                         'skill_name': skill_name,
                         'type': 'Required',
                         'match': False,
-                        'reason': "Skill not found in candidate's profile."
+                        'reason': "Vaardigheid niet gevonden in kandidaat's profiel."
                     })
             
             # Check nice-to-have skills
@@ -1130,7 +1130,7 @@ def vacancy_match():
                                 'skill_name': skill_name,
                                 'type': 'Nice to Have',
                                 'match': True,
-                                'reason': f"Candidate has {cand_years} years, preferred {req_years} years."
+                                'reason': f"Kandidaat heeft {cand_years} jaar ervaring, gevraagd: {req_years} jaar."
                             })
                         else:
                             nice_to_have_match_score += 0.5
@@ -1138,7 +1138,7 @@ def vacancy_match():
                                 'skill_name': skill_name,
                                 'type': 'Nice to Have',
                                 'match': False,
-                                'reason': f"Candidate has {cand_years} years, preferred {req_years} years."
+                                'reason': f"Kandidaat heeft {cand_years} jaar ervaring, gevraagd: {req_years} jaar."
                             })
                         break
                 

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Search Statistics - CV Analyzer{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Add Wortell color variables */
+    :root {
+        --wortell-blue: #0078D4;
+        --wortell-dark-blue: #005A9E;
+        --wortell-light-blue: #50A0D2;
+        --wortell-green: #00D66C;
+        --wortell-dark-green: #00B85D;
+        --wortell-light-green: #33DB84;
+        --wortell-purple: #6C1F85;
+        --wortell-gray: #F3F3F3;
+        --wortell-dark-gray: #333333;
+        
+        --primary-color: var(--wortell-green);
+        --primary-dark: var(--wortell-dark-green);
+        --primary-light: var(--wortell-light-green);
+        --secondary-color: var(--wortell-purple);
+    }
+
+    .welcome-banner {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #7cd3c7 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: var(--border-radius);
+        margin-bottom: 2rem;
+        box-shadow: var(--box-shadow);
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .search-term-row {
+        transition: background-color 0.2s;
+    }
+
+    .search-term-row:hover {
+        background-color: var(--wortell-gray);
+    }
+
+    .search-count-badge {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-weight: 600;
+    }
+
+    .time-badge {
+        background-color: var(--wortell-gray);
+        color: var(--wortell-dark-gray);
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    .chart-container {
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Welcome Banner Header -->
+    <div class="welcome-banner mb-4">
+        <h2 class="page-title">Zoekstatistieken</h2>
+        <p>Bekijk de meest gezochte vaardigheden en trends in het zoekgedrag.</p>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-white">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Zoekstatistieken</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row">
+        <!-- Top Searches Card -->
+        <div class="col-12">
+            <div class="stats-card">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-search me-2"></i>
+                        Meest Gezochte Vaardigheden
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Vaardigheid</th>
+                                    <th scope="col">Aantal Zoekopdrachten</th>
+                                    <th scope="col">Laatste Zoekopdracht</th>
+                                    <th scope="col">Actie</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for search in top_searches %}
+                                <tr class="search-term-row">
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <strong>{{ search.search_term|title }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="search-count-badge">
+                                            {{ search.search_count }}x
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="time-badge">
+                                            <i class="bi bi-clock me-1"></i>
+                                            {{ search.last_searched.strftime('%d-%m-%Y %H:%M') }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('skill_search', skill=search.search_term) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-search me-1"></i>
+                                            Zoeken
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% if not top_searches %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="bi bi-search text-muted d-block mb-2" style="font-size: 2rem;"></i>
+                                        <p class="text-muted mb-0">Nog geen zoekopdrachten uitgevoerd</p>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %} 
