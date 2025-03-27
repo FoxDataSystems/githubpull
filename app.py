@@ -8,12 +8,13 @@ import docx
 import uuid
 from werkzeug.utils import secure_filename
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from jinja2 import Template
 import pdfkit
 import pymssql
 # Import the generate_cv function from cv_generator.py
 from cv_generator import generate_cv
+from collections import defaultdict
 
 # Create a function to establish database connection
 def get_db_connection():
@@ -1258,6 +1259,13 @@ def skill_search():
         
         skill_candidates = cursor.fetchall()
         
+        # Save the search to search_history
+        cursor.execute("""
+            INSERT INTO search_history (search_term, results_count)
+            VALUES (%s, %s)
+        """, (skill, len(skill_candidates)))
+        conn.commit()
+        
         # For each candidate, get their other skills
         for candidate in skill_candidates:
             cursor.execute("""
@@ -1268,8 +1276,6 @@ def skill_search():
             """, (candidate['id'], skill))
             
             other_skills = cursor.fetchall()
-            
-            # No need to convert to dictionary
             candidate['other_skills'] = other_skills
             candidates.append(candidate)
         
@@ -1514,6 +1520,87 @@ def add_candidate_skill():
         # Print the actual query for debugging
         print(f"Executed query: {query}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/search-stats')
+def search_stats():
+    period = request.args.get('period', 'month')
+    conn = get_db_connection()
+    cursor = conn.cursor(as_dict=True)
+    
+    # Calculate date range based on period
+    now = datetime.now()
+    if period == 'week':
+        start_date = now - timedelta(days=7)
+    elif period == 'month':
+        start_date = now - timedelta(days=30)
+    else:  # 'all'
+        start_date = datetime.min
+    
+    # Get total searches for the period
+    cursor.execute("""
+        SELECT COUNT(*) as total
+        FROM search_history
+        WHERE search_timestamp >= %s
+    """, (start_date,))
+    total_searches = cursor.fetchone()['total']
+    
+    # Get unique skills count
+    cursor.execute("""
+        SELECT COUNT(DISTINCT search_term) as unique_count
+        FROM search_history
+        WHERE search_timestamp >= %s
+    """, (start_date,))
+    unique_skills = cursor.fetchone()['unique_count']
+    
+    # Get average results
+    cursor.execute("""
+        SELECT AVG(CAST(results_count AS FLOAT)) as avg_results
+        FROM search_history
+        WHERE search_timestamp >= %s
+    """, (start_date,))
+    avg_results = cursor.fetchone()['avg_results'] or 0
+    
+    # Get top searches with trends
+    cursor.execute("""
+        WITH TopSearches AS (
+            SELECT 
+                search_term,
+                COUNT(*) as search_count,
+                MAX(search_timestamp) as last_searched,
+                AVG(CAST(results_count AS FLOAT)) as avg_results
+            FROM search_history
+            WHERE search_timestamp >= %s
+            GROUP BY search_term
+            ORDER BY search_count DESC, last_searched DESC
+            OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
+        )
+        SELECT *,
+            (
+                SELECT AVG(CAST(results_count AS FLOAT))
+                FROM search_history h2
+                WHERE h2.search_term = TopSearches.search_term
+                AND h2.search_timestamp >= DATEADD(day, -7, GETDATE())
+            ) as recent_avg
+        FROM TopSearches
+    """, (start_date,))
+    
+    top_searches = cursor.fetchall()
+    
+    # Calculate trends (% change in average results over the last week)
+    for search in top_searches:
+        if search['recent_avg'] and search['avg_results']:
+            search['trend'] = round(((search['recent_avg'] - search['avg_results']) / search['avg_results']) * 100)
+        else:
+            search['trend'] = 0
+    
+    conn.close()
+    
+    return render_template('search_stats.html',
+                         total_searches=total_searches,
+                         unique_skills=unique_skills,
+                         avg_results=avg_results,
+                         top_searches=top_searches,
+                         period=period)
 
 if __name__ == '__main__':
     app.run(debug=True)

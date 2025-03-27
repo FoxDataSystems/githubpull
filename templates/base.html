@@ -20,6 +20,7 @@
             --primary-hover: #00bf61;
             --nav-height: 64px;
             --border-subtle: #e5e7eb;
+            --border-radius: 8px;
             --text-primary: #111827;
             --text-secondary: #4b5563;
             --bg-subtle: #f9fafb;
@@ -142,6 +143,12 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'skill_search' %}active{% endif %}" 
                            href="{{ url_for('skill_search') }}">Skill Search</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'search_stats' %}active{% endif %}" 
+                           href="{{ url_for('search_stats') }}">
+                            Zoekanalyse
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'outdated_candidates' %}active{% endif %}" 

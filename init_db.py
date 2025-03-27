@@ -43,6 +43,30 @@ def init_db():
     )
     ''')
 
+    # Create certificates table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS certificates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidate_id INTEGER,
+        name TEXT,
+        issuer TEXT,
+        date_obtained TEXT,
+        expiry_date TEXT,
+        description TEXT,
+        FOREIGN KEY (candidate_id) REFERENCES candidates (id)
+    )
+    ''')
+
+    # Create search_history table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS search_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        search_term TEXT NOT NULL,
+        search_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        results_count INTEGER
+    )
+    ''')
+
     conn.commit()
     conn.close()
 

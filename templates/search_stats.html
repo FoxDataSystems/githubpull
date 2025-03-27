@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Search Statistics - CV Analyzer{% endblock %}
+{% block title %}Search Analytics - CV Analyzer{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -12,14 +12,25 @@
         --wortell-green: #00D66C;
         --wortell-dark-green: #00B85D;
         --wortell-light-green: #33DB84;
-        --wortell-purple: #6C1F85;
+        --wortell-purple: #7B23F4;
+        --wortell-light-purple: #9D53FF;
         --wortell-gray: #F3F3F3;
         --wortell-dark-gray: #333333;
         
         --primary-color: var(--wortell-green);
         --primary-dark: var(--wortell-dark-green);
         --primary-light: var(--wortell-light-green);
-        --secondary-color: var(--wortell-purple);
+        --secondary-color: var(--wortell-blue);
+        --secondary-dark: var(--wortell-dark-blue);
+        --secondary-light: var(--wortell-light-blue);
+        --accent-color: var(--wortell-purple);
+        --light-bg: #f8f9fa;
+        --dark-bg: #212529;
+        --text-color: #2c2c2c;
+        --light-text: #f8f9fa;
+        --border-radius: 8px;
+        --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --transition: all 0.3s ease;
     }
 
     .welcome-banner {
@@ -37,6 +48,11 @@
         box-shadow: var(--box-shadow);
         margin-bottom: 1.5rem;
         overflow: hidden;
+        transition: transform 0.2s;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
     }
 
     .search-term-row {
@@ -44,23 +60,36 @@
     }
 
     .search-term-row:hover {
-        background-color: var(--wortell-gray);
+        background-color: #f8f9fa;
     }
 
     .search-count-badge {
-        background-color: var(--primary-color);
-        color: white;
+        background-color: #e6f4ea;
+        color: #00B85D;
         padding: 0.25rem 0.75rem;
         border-radius: 1rem;
         font-weight: 600;
     }
 
     .time-badge {
-        background-color: var(--wortell-gray);
-        color: var(--wortell-dark-gray);
-        padding: 0.25rem 0.75rem;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .trend-indicator {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
         border-radius: 0.25rem;
-        font-size: 0.875rem;
+    }
+
+    .trend-up {
+        background-color: #e6f4ea;
+        color: #00B85D;
+    }
+
+    .trend-down {
+        background-color: #fde7e9;
+        color: #dc3545;
     }
 
     .chart-container {
@@ -72,86 +101,140 @@
 
 {% block content %}
 <div class="container py-4">
-    <!-- Welcome Banner Header -->
+    <!-- Welcome Banner -->
     <div class="welcome-banner mb-4">
-        <h2 class="page-title">Zoekstatistieken</h2>
-        <p>Bekijk de meest gezochte vaardigheden en trends in het zoekgedrag.</p>
+        <h2 class="page-title">Zoekanalyse</h2>
+        <p>Bekijk statistieken en trends van uitgevoerde zoekopdrachten naar vaardigheden.</p>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-white">Dashboard</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Zoekstatistieken</li>
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Zoekanalyse</li>
             </ol>
         </nav>
     </div>
 
-    <div class="row">
-        <!-- Top Searches Card -->
-        <div class="col-12">
-            <div class="stats-card">
-                <div class="card-header bg-white border-bottom-0 py-3">
-                    <h5 class="mb-0">
-                        <i class="bi bi-search me-2"></i>
-                        Meest Gezochte Vaardigheden
-                    </h5>
+    <!-- Stats Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card stats-card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Totaal Zoekopdrachten</h6>
+                    <h2 class="card-title mb-3">{{ total_searches }}</h2>
+                    <p class="card-text text-muted">
+                        <i class="bi bi-clock-history me-1"></i>
+                        Laatste 30 dagen
+                    </p>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th scope="col">#</th>
-                                    <th scope="col">Vaardigheid</th>
-                                    <th scope="col">Aantal Zoekopdrachten</th>
-                                    <th scope="col">Laatste Zoekopdracht</th>
-                                    <th scope="col">Actie</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for search in top_searches %}
-                                <tr class="search-term-row">
-                                    <td>{{ loop.index }}</td>
-                                    <td>
-                                        <strong>{{ search.search_term|title }}</strong>
-                                    </td>
-                                    <td>
-                                        <span class="search-count-badge">
-                                            {{ search.search_count }}x
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="time-badge">
-                                            <i class="bi bi-clock me-1"></i>
-                                            {{ search.last_searched.strftime('%d-%m-%Y %H:%M') }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('skill_search', skill=search.search_term) }}" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-search me-1"></i>
-                                            Zoeken
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% if not top_searches %}
-                                <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="bi bi-search text-muted d-block mb-2" style="font-size: 2rem;"></i>
-                                        <p class="text-muted mb-0">Nog geen zoekopdrachten uitgevoerd</p>
-                                    </td>
-                                </tr>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stats-card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Unieke Vaardigheden</h6>
+                    <h2 class="card-title mb-3">{{ unique_skills }}</h2>
+                    <p class="card-text text-muted">
+                        <i class="bi bi-tags me-1"></i>
+                        Verschillende zoekopdrachten
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stats-card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Gemiddelde Resultaten</h6>
+                    <h2 class="card-title mb-3">{{ avg_results|round(1) }}</h2>
+                    <p class="card-text text-muted">
+                        <i class="bi bi-people me-1"></i>
+                        Kandidaten per zoekopdracht
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Searches Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Meest Gezochte Vaardigheden</h5>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-period="week">Week</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary active" data-period="month">Maand</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-period="all">Alles</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Vaardigheid</th>
+                            <th scope="col">Aantal Zoekopdrachten</th>
+                            <th scope="col">Laatste Zoekopdracht</th>
+                            <th scope="col">Gem. Resultaten</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for search in top_searches %}
+                        <tr class="search-term-row">
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <a href="{{ url_for('skill_search', skill=search.search_term) }}" class="text-decoration-none">
+                                    <strong>{{ search.search_term|title }}</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <span class="search-count-badge">
+                                    {{ search.search_count }}x
+                                </span>
+                            </td>
+                            <td>
+                                <span class="time-badge">
+                                    <i class="bi bi-clock me-1"></i>
+                                    {{ search.last_searched.strftime('%d-%m-%Y %H:%M') }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ search.avg_results|round(1) }}
+                                {% if search.trend > 0 %}
+                                <span class="trend-indicator trend-up">
+                                    <i class="bi bi-arrow-up-short"></i>{{ search.trend }}%
+                                </span>
+                                {% elif search.trend < 0 %}
+                                <span class="trend-indicator trend-down">
+                                    <i class="bi bi-arrow-down-short"></i>{{ search.trend|abs }}%
+                                </span>
                                 {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const periodButtons = document.querySelectorAll('[data-period]');
+    
+    periodButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            periodButtons.forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Here you would typically make an AJAX call to update the data
+            // For now, we'll just reload the page with a period parameter
+            const period = this.dataset.period;
+            window.location.href = `${window.location.pathname}?period=${period}`;
+        });
+    });
+});
+</script>
 {% endblock %} 
