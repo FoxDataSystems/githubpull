@@ -72,7 +72,9 @@ def initialize_database():
                     name NVARCHAR(255),
                     email NVARCHAR(255),
                     phone NVARCHAR(50),
-                    cv_text NVARCHAR(MAX)
+                    cv_text NVARCHAR(MAX),
+                    wensen NVARCHAR(MAX),
+                    ambities NVARCHAR(MAX)
                 )
             END
         """)
@@ -103,6 +105,7 @@ def initialize_database():
                     candidate_id VARCHAR(255),
                     skill_name NVARCHAR(255),
                     years_experience FLOAT,
+                    is_starred BIT DEFAULT 0,
                     FOREIGN KEY (candidate_id) REFERENCES candidates (id)
                 )
             END
@@ -121,6 +124,19 @@ def initialize_database():
                     expiry_date NVARCHAR(50),
                     description NVARCHAR(MAX),
                     FOREIGN KEY (candidate_id) REFERENCES candidates (id)
+                )
+            END
+        """)
+        
+        # Create search_history table if it doesn't exist
+        cursor.execute("""
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'search_history')
+            BEGIN
+                CREATE TABLE search_history (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    search_term NVARCHAR(255),
+                    search_timestamp DATETIME DEFAULT GETDATE(),
+                    results_count INT
                 )
             END
         """)
@@ -329,9 +345,9 @@ def save_to_database(cv_data):
     
     # Insert candidate information
     cursor.execute(
-        "INSERT INTO candidates (id, name, email, phone, cv_text) VALUES (%s, %s, %s, %s, %s)",
+        "INSERT INTO candidates (id, name, email, phone, cv_text, wensen, ambities) VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (candidate_id, cv_data.get('name', ''), cv_data.get('email', ''), 
-         cv_data.get('phone', ''), cv_data.get('cv_text', ''))
+         cv_data.get('phone', ''), cv_data.get('cv_text', ''), cv_data.get('wensen', ''), cv_data.get('ambities', ''))
     )
     
     # Insert work experience
@@ -482,6 +498,15 @@ def dashboard():
             'time': 'Recent'
         })
 
+    # Calculate candidates added this month
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    cursor.execute("""
+        SELECT COUNT(*) as count FROM candidates
+        WHERE MONTH(created_at) = %s AND YEAR(created_at) = %s
+    """, (current_month, current_year))
+    candidates_added_this_month = cursor.fetchone()['count']
+
     conn.close()
 
     return render_template('dashboard.html',
@@ -491,7 +516,8 @@ def dashboard():
                          most_skilled_candidate=most_skilled_candidate,
                          top_skills=top_skills,
                          top_candidates=top_candidates,
-                         recent_activities=recent_activities)
+                         recent_activities=recent_activities,
+                         candidates_added_this_month=candidates_added_this_month)
 
 @app.route('/upload')
 def upload_page():
@@ -557,115 +583,178 @@ def upload_file():
 
 @app.route('/candidates')
 def view_candidates():
+    search_query = request.args.get('q', '')
+    search_terms = [term.strip() for term in search_query.split() if term.strip()]
+    
     conn = get_db_connection()
     cursor = conn.cursor(as_dict=True)
     
-    # Unified search query
-    search_query = request.args.get('q', '').strip()
+    # Get total count of all candidates
+    cursor.execute("SELECT COUNT(*) as count FROM candidates")
+    total_candidates = cursor.fetchone()['count']
     
-    if search_query:
-        # Split search terms and remove empty strings
-        search_terms = [term.strip() for term in search_query.split() if term.strip()]
+    # Get average skills per candidate
+    cursor.execute("""
+        SELECT CAST(COUNT(s.id) AS FLOAT) / NULLIF(COUNT(DISTINCT s.candidate_id), 0) as avg_skills
+        FROM skills s
+    """)
+    result = cursor.fetchone()
+    avg_skills_per_candidate = round(result['avg_skills'], 1) if result and result['avg_skills'] else 0
+    
+    # Calculate candidates added this month
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    cursor.execute("""
+        SELECT COUNT(*) as count FROM candidates
+        WHERE MONTH(created_at) = %s AND YEAR(created_at) = %s
+    """, (current_month, current_year))
+    candidates_added_this_month = cursor.fetchone()['count']
+    
+    # Fetch candidates based on search query
+    if search_terms:
+        # Build a query that finds candidates matching ALL search terms
+        query_parts = []
+        params = []
         
-        if search_terms:
-            # Create a subquery for each search term (for both skills and certificates)
-            conditions = []
-            params = []
-            
-            for term in search_terms:
-                # Add condition using normalized comparison (removing spaces and hyphens)
-                conditions.append("""
-                    EXISTS (
-                        SELECT 1 
-                        FROM skills s 
-                        WHERE s.candidate_id = c.id 
-                        AND REPLACE(REPLACE(LOWER(s.skill_name), ' ', ''), '-', '') LIKE REPLACE(REPLACE(LOWER(%s), ' ', ''), '-', '')
-                    )
-                    OR
-                    EXISTS (
-                        SELECT 1 
-                        FROM certificates cert 
-                        WHERE cert.candidate_id = c.id 
-                        AND REPLACE(REPLACE(LOWER(cert.name), ' ', ''), '-', '') LIKE REPLACE(REPLACE(LOWER(%s), ' ', ''), '-', '')
-                    )
-                """)
-                params.extend([f'%{term}%', f'%{term}%'])  # Add parameters for both skills and certificates
-            
-            # Combine all conditions with AND
-            combined_query = " AND ".join(f"({condition})" for condition in conditions)
-            
-            # Search by name, email, or all specified skills/certificates
-            cursor.execute(f"""
-                SELECT DISTINCT c.id, c.name, c.email, c.phone
-                FROM candidates c
-                WHERE 
+        for term in search_terms:
+            term_param = f'%{term}%'
+            query_parts.append("""
+                (
                     LOWER(c.name) LIKE LOWER(%s) OR 
-                    LOWER(c.email) LIKE LOWER(%s) OR
-                    ({combined_query})
-                ORDER BY c.name
-            """, ['%' + search_query + '%', '%' + search_query + '%'] + params)
+                    LOWER(c.email) LIKE LOWER(%s) OR 
+                    EXISTS (
+                        SELECT 1 FROM skills s 
+                        WHERE s.candidate_id = c.id AND LOWER(s.skill_name) LIKE LOWER(%s)
+                    )
+                )
+            """)
+            params.extend([term_param, term_param, term_param])
+        
+        # Join all conditions with AND to require all terms
+        query = f"""
+            SELECT DISTINCT c.id, c.name, c.email, c.phone 
+            FROM candidates c
+            WHERE {" AND ".join(query_parts)}
+            ORDER BY c.name
+        """
+        
+        cursor.execute(query, params)
     else:
-        # Show all candidates if no search
         cursor.execute("SELECT id, name, email, phone FROM candidates ORDER BY name")
     
     candidates = cursor.fetchall()
     
-    # For each candidate, fetch their top skills and certificates
+    # For each candidate, fetch their top skills
     for candidate in candidates:
-        # Fetch skills
         cursor.execute("""
             SELECT TOP 5 skill_name, years_experience 
             FROM skills 
             WHERE candidate_id = %s 
-            ORDER BY years_experience DESC
+            ORDER BY is_starred DESC, years_experience DESC
         """, (candidate['id'],))
         candidate['skills'] = cursor.fetchall()
         
-        # Fetch certificates
+        # Check if assignments table exists 
         cursor.execute("""
-            SELECT TOP 3 name, issuer, date_obtained
-            FROM certificates 
-            WHERE candidate_id = %s 
-            ORDER BY date_obtained DESC
-        """, (candidate['id'],))
-        candidate['certificates'] = cursor.fetchall()
+            SELECT CASE WHEN EXISTS(
+                SELECT * FROM INFORMATION_SCHEMA.TABLES 
+                WHERE TABLE_NAME = 'assignments'
+            ) THEN 1 ELSE 0 END AS table_exists
+        """)
+        
+        if cursor.fetchone()['table_exists'] == 1:
+            # Table exists, get real availability data
+            cursor.execute("""
+                SELECT 
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM assignments 
+                            WHERE consultant_id = %s 
+                            AND status = 'Active'
+                            AND end_date >= GETDATE()
+                        ) THEN (
+                            SELECT MIN(end_date)
+                            FROM assignments 
+                            WHERE consultant_id = %s 
+                            AND status = 'Active'
+                            AND end_date >= GETDATE()
+                        )
+                        ELSE NULL
+                    END as next_available_date,
+                    (
+                        SELECT SUM(hours_per_week)
+                        FROM assignments 
+                        WHERE consultant_id = %s 
+                        AND status = 'Active'
+                        AND end_date >= GETDATE()
+                    ) as current_hours
+                """, (candidate['id'], candidate['id'], candidate['id']))
+            
+            availability_info = cursor.fetchone()
+            
+            # Fetch availability preferences
+            cursor.execute("""
+                SELECT max_hours_per_week
+                FROM availability_preferences
+                WHERE consultant_id = %s
+            """, (candidate['id'],))
+            prefs = cursor.fetchone()
+            max_hours = prefs['max_hours_per_week'] if prefs else 40
+            
+            # Set availability status
+            if not availability_info['next_available_date'] or not availability_info['current_hours']:
+                candidate['availability_status'] = 'available'
+                candidate['next_available'] = None
+            elif availability_info['current_hours'] < max_hours:
+                candidate['availability_status'] = 'partially'
+                candidate['next_available'] = availability_info['next_available_date']
+            else:
+                candidate['availability_status'] = 'busy'
+                candidate['next_available'] = availability_info['next_available_date']
+        else:
+            # Table doesn't exist, use default
+            candidate['availability_status'] = 'available'
+            candidate['next_available'] = None
     
-    # Get all unique skills and certificates for the datalist
+    # Get all unique skills for the datalist
     cursor.execute("""
-        SELECT DISTINCT skill_name as name, 'skill' as type
+        SELECT DISTINCT skill_name
         FROM skills
-        UNION
-        SELECT DISTINCT name, 'certificate' as type
-        FROM certificates
-        ORDER BY name
+        ORDER BY skill_name
     """)
-    all_searchable = cursor.fetchall()
+    all_skills = [row['skill_name'] for row in cursor.fetchall()]
     
     conn.close()
     
-    return render_template('candidates.html', 
-                          candidates=candidates, 
-                          search_query=search_query,
-                          all_searchable=all_searchable)
+    return render_template('candidates.html',
+                         candidates=candidates,
+                         total_candidates=total_candidates,
+                         avg_skills_per_candidate=avg_skills_per_candidate,
+                         search_query=search_query,
+                         all_skills=all_skills,
+                         candidates_added_this_month=candidates_added_this_month)
 
 @app.route('/candidate/<candidate_id>')
-def view_candidate(candidate_id):
+def candidate_details(candidate_id):
     conn = get_db_connection()
-    cursor = conn.cursor(as_dict=True)  # Set cursor to return dictionaries
+    cursor = conn.cursor(as_dict=True)
     
-    # Get candidate info
-    cursor.execute("SELECT * FROM candidates WHERE id = %s", (candidate_id,))
+    # Make sure to include wensen and ambities in your SELECT statement
+    cursor.execute("""
+        SELECT id, name, email, phone, cv_text, wensen, ambities, updated_at
+        FROM candidates 
+        WHERE id = %s
+    """, (candidate_id,))
+    
     candidate = cursor.fetchone()
     
-    # Get work experience
+    # Fetch other candidate data (skills, work_experience, certificates, etc.)
     cursor.execute("SELECT * FROM work_experience WHERE candidate_id = %s ORDER BY start_date DESC", (candidate_id,))
     work_experience = cursor.fetchall()
     
-    # Get skills
-    cursor.execute("SELECT * FROM skills WHERE candidate_id = %s ORDER BY years_experience DESC", (candidate_id,))
+    cursor.execute("SELECT * FROM skills WHERE candidate_id = %s ORDER BY is_starred DESC, years_experience DESC", (candidate_id,))
     skills = cursor.fetchall()
     
-    # Get certificates
     cursor.execute("SELECT * FROM certificates WHERE candidate_id = %s ORDER BY date_obtained DESC", (candidate_id,))
     certificates = cursor.fetchall()
     
@@ -677,7 +766,7 @@ def view_candidate(candidate_id):
                           skills=skills,
                           certificates=certificates)
 
-@app.route('/candidate/delete/<candidate_id>', methods=['POST'])
+@app.route('/candidate/delete/<string:candidate_id>', methods=['POST'])
 def delete_candidate(candidate_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -700,130 +789,82 @@ def delete_candidate(candidate_id):
     flash('Candidate deleted successfully')
     return redirect(url_for('view_candidates'))
 
-@app.route('/edit_candidate/<candidate_id>', methods=['GET', 'POST'])
+@app.route('/candidate/edit/<candidate_id>', methods=['GET', 'POST'])
 def edit_candidate(candidate_id):
     if request.method == 'POST':
-        # Update candidate information
-        name = request.form.get('name')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
+        # Get form data
+        name = request.form['name']
+        email = request.form['email']
+        phone = request.form['phone']
+        # Get the new fields
+        wensen = request.form.get('wensen', '')
+        ambities = request.form.get('ambities', '')
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Update candidate with new updated_at timestamp
-        cursor.execute(
-            """UPDATE candidates 
-               SET name = %s, email = %s, phone = %s, updated_at = %s 
-               WHERE id = %s""",
-            (name, email, phone, datetime.now(), candidate_id)
-        )
-        
-        # Handle work experience updates
-        # First, delete all existing work experience
-        cursor.execute("DELETE FROM work_experience WHERE candidate_id = %s", (candidate_id,))
-        
-        # Then add the updated ones
-        work_exp_count = int(request.form.get('work_exp_count', 0))
-        for i in range(work_exp_count):
-            company = request.form.get(f'company_{i}')
-            position = request.form.get(f'position_{i}')
-            start_date = request.form.get(f'start_date_{i}')
-            end_date = request.form.get(f'end_date_{i}')
-            description = request.form.get(f'description_{i}')
-            
-            if company and position:  # Only add if essential fields are present
-                cursor.execute(
-                    "INSERT INTO work_experience (candidate_id, company, position, start_date, end_date, description) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (candidate_id, company, position, start_date, end_date, description)
-                )
-        
-        # Handle skills updates
-        # First, delete existing skills
-        cursor.execute("DELETE FROM skills WHERE candidate_id = %s", (candidate_id,))
-        
-        # Insert updated skills
-        skills_count = int(request.form.get('skills_count', 0))
-        for i in range(skills_count):
-            skill_name = request.form.get(f'skill_name_{i}')
-            years_experience = request.form.get(f'years_experience_{i}')
-            
-            if skill_name:  # Only add if skill name is present
-                try:
-                    years_exp = float(years_experience) if years_experience else 0
-                except ValueError:
-                    years_exp = 0
-                    
-                cursor.execute(
-                    "INSERT INTO skills (candidate_id, skill_name, years_experience) VALUES (%s, %s, %s)",
-                    (candidate_id, skill_name, years_exp)
-                )
-        
-        # Process certificates
-        certificates_count = int(request.form.get('certificates_count', 0))
-        
-        # First, delete existing certificates
-        cursor.execute("DELETE FROM certificates WHERE candidate_id = %s", (candidate_id,))
-        
-        # Insert updated certificates
-        for i in range(certificates_count):
-            name = request.form.get(f'cert_name_{i}')
-            if name:  # Only insert if there's at least a name
-                cursor.execute("""
-                    INSERT INTO certificates (candidate_id, name, issuer, date_obtained, 
-                                           expiry_date, description)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
-                    candidate_id,
-                    name,
-                    request.form.get(f'cert_issuer_{i}', ''),
-                    request.form.get(f'cert_date_obtained_{i}', ''),
-                    request.form.get(f'cert_expiry_date_{i}', ''),
-                    request.form.get(f'cert_description_{i}', '')
-                ))
+        # Update the query to include wensen and ambities
+        cursor.execute("""
+            UPDATE candidates 
+            SET name = %s, email = %s, phone = %s, wensen = %s, ambities = %s, updated_at = GETDATE() 
+            WHERE id = %s
+        """, (name, email, phone, wensen, ambities, candidate_id))
         
         conn.commit()
         conn.close()
         
-        flash('Candidate information updated successfully')
-        return redirect(url_for('view_candidate', candidate_id=candidate_id))
+        flash('Candidate updated successfully!', 'success')
+        return redirect(url_for('candidate_details', candidate_id=candidate_id))
     
-    # GET request - show edit form
+    # For GET requests
     conn = get_db_connection()
-    cursor = conn.cursor(as_dict=True)  # Use dictionary cursor for GET
+    cursor = conn.cursor(as_dict=True)
     
-    # Get candidate info
-    cursor.execute("SELECT * FROM candidates WHERE id = %s", (candidate_id,))
+    # Fetch the candidate data
+    cursor.execute("""
+        SELECT id, name, email, phone, cv_text, wensen, ambities, updated_at
+        FROM candidates 
+        WHERE id = %s
+    """, (candidate_id,))
+    
     candidate = cursor.fetchone()
     
-    if not candidate:
-        flash('Candidate not found', 'error')
-        return redirect(url_for('view_candidates'))
+    # Fetch skills - make sure to keep this part
+    cursor.execute("""
+        SELECT id, skill_name, years_experience, is_starred
+        FROM skills
+        WHERE candidate_id = %s
+        ORDER BY is_starred DESC, years_experience DESC
+    """, (candidate_id,))
     
-    # Get work experience
-    cursor.execute("SELECT * FROM work_experience WHERE candidate_id = %s ORDER BY start_date DESC", (candidate_id,))
-    work_experience = cursor.fetchall()
-    
-    # Get skills
-    cursor.execute("SELECT * FROM skills WHERE candidate_id = %s ORDER BY years_experience DESC", (candidate_id,))
     skills = cursor.fetchall()
     
-    # Get certificates
-    cursor.execute("SELECT * FROM certificates WHERE candidate_id = %s ORDER BY date_obtained DESC", (candidate_id,))
+    # Fetch work experience - make sure to keep this part
+    cursor.execute("""
+        SELECT id, company, position, start_date, end_date, description
+        FROM work_experience
+        WHERE candidate_id = %s
+        ORDER BY start_date DESC
+    """, (candidate_id,))
+    
+    work_experience = cursor.fetchall()
+    
+    # Fetch certificates - make sure to keep this part
+    cursor.execute("""
+        SELECT id, name, issuer, date_obtained, expiry_date, description
+        FROM certificates
+        WHERE candidate_id = %s
+        ORDER BY date_obtained DESC
+    """, (candidate_id,))
+    
     certificates = cursor.fetchall()
     
     conn.close()
     
-    # Add debug output to check what data is being retrieved
-    print(f"Editing candidate: {candidate['name']} with ID: {candidate['id']}")
-    print(f"Skills count: {len(skills)}")
-    print(f"Work experience count: {len(work_experience)}")
-    print(f"Certificates count: {len(certificates)}")
-    
     return render_template('edit_candidate.html', 
                           candidate=candidate, 
+                          skills=skills, 
                           work_experience=work_experience, 
-                          skills=skills,
                           certificates=certificates)
 
 @app.route('/vacancy-match', methods=['GET', 'POST'])
@@ -1139,7 +1180,7 @@ def vacancy_match():
                                 'skill_name': skill_name,
                                 'type': 'Nice to Have',
                                 'match': False,
-                                'reason': f"Kandidaat heeft {cand_years} jaar ervaring, gevraagd: {req_years} jaar."
+                                'reason': f"Kandidaat heeft {cand_years} jaar ervaring, preferred {req_years} jaar."
                             })
                         break
                 
@@ -1420,7 +1461,7 @@ def generate_candidate_cv(candidate_id):
         return response
     except Exception as e:
         flash(f'Error generating CV: {str(e)}', 'error')
-        return redirect(url_for('view_candidate', candidate_id=candidate_id))
+        return redirect(url_for('view_candidates', candidate_id=candidate_id))
 
 @app.route('/view_cv/<candidate_id>')
 def view_cv(candidate_id):
@@ -1493,6 +1534,7 @@ def add_candidate_skill():
         # Escape single quotes in skill_name to prevent SQL injection
         skill_name = data['skill_name'].replace("'", "''")
         years_experience = float(data['years_experience'])
+        is_starred = data.get('is_starred', 0)  # Default to 0 if not provided
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -1500,9 +1542,9 @@ def add_candidate_skill():
         # Using f-string with proper escaping
         query = f"""
             INSERT INTO [cv-analysis-db].dbo.skills 
-            (candidate_id, skill_name, years_experience) 
+            (candidate_id, skill_name, years_experience, is_starred) 
             VALUES 
-            ('{candidate_id}', N'{skill_name}', {years_experience})
+            ('{candidate_id}', N'{skill_name}', {years_experience}, {is_starred})
         """
         
         cursor.execute(query)
@@ -1516,7 +1558,8 @@ def add_candidate_skill():
         print(f"Error adding skill: {e}")
         print(f"Input data: candidate_id={data.get('candidate_id')}, "
               f"skill_name={data.get('skill_name')}, "
-              f"years_experience={data.get('years_experience')}")
+              f"years_experience={data.get('years_experience')}, "
+              f"is_starred={data.get('is_starred', 0)}")
         # Print the actual query for debugging
         print(f"Executed query: {query}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1601,6 +1644,45 @@ def search_stats():
                          avg_results=avg_results,
                          top_searches=top_searches,
                          period=period)
+
+@app.route('/toggle-skill-star', methods=['POST'])
+def toggle_skill_star():
+    try:
+        data = request.json
+        skill_id = data['skill_id']
+        is_starred = data['is_starred']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = f"""
+            UPDATE [cv-analysis-db].dbo.skills 
+            SET is_starred = {1 if is_starred else 0}
+            WHERE id = {skill_id}
+        """
+        
+        cursor.execute(query)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        print(f"Error toggling skill star: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/add-candidate', methods=['POST'])
+def add_candidate():
+    # ... existing code ...
+    
+    # Add wensen and ambities to the INSERT statement
+    cursor.execute("""
+        INSERT INTO candidates (id, name, email, phone, cv_text, wensen, ambities)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (candidate_id, name, email, phone, cv_text, wensen, ambities))
+    
+    # ... existing code ...
 
 if __name__ == '__main__':
     app.run(debug=True)

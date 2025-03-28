@@ -33,13 +33,48 @@
         --transition: all 0.3s ease;
     }
 
-    .welcome-banner {
-        background: linear-gradient(135deg, var(--primary-color) 0%, #7cd3c7 100%);
+     /* Welcome Banner */
+     .welcome-banner {
+        background: linear-gradient(135deg, var(--wortell-green) 0%, #7cd3c7 100%);
         color: white;
         padding: 2rem;
         border-radius: var(--border-radius);
         margin-bottom: 2rem;
         box-shadow: var(--box-shadow);
+    }
+   
+    .welcome-banner h2 {
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .welcome-banner p {
+        opacity: 0.9;
+        margin-bottom: 1.5rem;
+        max-width: 600px;
+    }
+
+    .welcome-banner .breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin: 0;
+    }
+
+    .welcome-banner .breadcrumb-item a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+    }
+
+    .welcome-banner .breadcrumb-item a:hover {
+        color: white;
+    }
+
+    .welcome-banner .breadcrumb-item.active {
+        color: white;
+    }
+
+    .welcome-banner .breadcrumb-item+.breadcrumb-item::before {
+        color: rgba(255, 255, 255, 0.6);
     }
 
     .stats-card {
@@ -95,6 +130,14 @@
     .chart-container {
         height: 300px;
         margin-bottom: 2rem;
+    }
+    .card-header {
+        background: var(--wortell-light-green);
+        color: #333333;
+    }
+    .text-decoration-table {
+        text-decoration: none;
+        color: var(--wortell-light-purple);
     }
 </style>
 {% endblock %}
@@ -180,7 +223,7 @@
                         <tr class="search-term-row">
                             <td>{{ loop.index }}</td>
                             <td>
-                                <a href="{{ url_for('skill_search', skill=search.search_term) }}" class="text-decoration-none">
+                                <a href="{{ url_for('skill_search', skill=search.search_term) }}" class="text-decoration-table">
                                     <strong>{{ search.search_term|title }}</strong>
                                 </a>
                             </td>

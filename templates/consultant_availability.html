@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+
+{% block title %}{{ consultant.name }} - Availability & Assignments{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-container {
+        position: relative;
+        margin: 30px 0;
+    }
+
+    .timeline-container::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+        padding-left: 60px;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        border: 4px solid white;
+        z-index: 1;
+    }
+
+    .timeline-card {
+        position: relative;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
+        border: none;
+    }
+
+    .timeline-card::before {
+        content: '';
+        position: absolute;
+        left: -15px;
+        top: 15px;
+        border-width: 8px;
+        border-style: solid;
+        border-color: transparent #fff transparent transparent;
+    }
+
+    .assignment-status {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+    }
+
+    .availability-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 5px;
+    }
+
+    .availability-indicator.available {
+        background-color: var(--primary-color);
+    }
+
+    .availability-indicator.busy {
+        background-color: var(--secondary-color);
+    }
+
+    .availability-indicator.partially {
+        background-color: #ffc107;
+    }
+    
+    .availability-banner {
+        padding: 20px;
+        border-radius: var(--border-radius);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .availability-banner.available {
+        background-color: rgba(0, 177, 64, 0.1);
+        border: 1px solid rgba(0, 177, 64, 0.2);
+    }
+
+    .availability-banner.busy {
+        background-color: rgba(108, 31, 133, 0.1);
+        border: 1px solid rgba(108, 31, 133, 0.2);
+    }
+
+    .availability-banner.partially {
+        background-color: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-2">{{ consultant.name }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_candidates') }}">Candidates</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_candidate', candidate_id=consultant.id) }}">{{ consultant.name }}</a></li>
+                    <li class="breadcrumb-item active">Availability & Assignments</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{{ url_for('view_candidate', candidate_id=consultant.id) }}" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-person me-1"></i> Profile
+            </a>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAssignmentModal">
+                <i class="bi bi-plus-circle me-1"></i> Add Assignment
+            </button>
+        </div>
+    </div>
+
+    <!-- Availability Status Banner -->
+    {% set current_assignments = assignments|selectattr('status', 'equalto', 'Active')|selectattr('end_date', '>=', today)|list %}
+    {% if current_assignments|length == 0 %}
+        <div class="availability-banner available">
+            <div>
+                <h5 class="mb-1"><i class="bi bi-check-circle me-2"></i> Currently Available</h5>
+                <p class="mb-0">{{ consultant.name }} is available for new assignments</p>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#availabilityPrefsModal">
+                    <i class="bi bi-gear me-1"></i> Preferences
+                </button>
+            </div>
+        </div>
+    {% elif current_assignments|map(attribute='hours_per_week')|sum < availability_prefs.max_hours_per_week %}
+        <div class="availability-banner partially">
+            <div>
+                <h5 class="mb-1"><i class="bi bi-clock me-2"></i> Partially Available</h5>
+                <p class="mb-0">{{ consultant.name }} has {{ availability_prefs.max_hours_per_week - current_assignments|map(attribute='hours_per_week')|sum }} hours/week available</p>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#availabilityPrefsModal">
+                    <i class="bi bi-gear me-1"></i> Preferences
+                </button>
+            </div>
+        </div>
+    {% else %}
+        <div class="availability-banner busy">
+            <div>
+                <h5 class="mb-1"><i class="bi bi-x-circle me-2"></i> Fully Booked</h5>
+                <p class="mb-0">{{ consultant.name }} is booked until {{ current_assignments|map(attribute='end_date')|sort|last|date }}</p>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#availabilityPrefsModal">
+                    <i class="bi bi-gear me-1"></i> Preferences
+                </button>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Availability Preferences Card -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Availability Preferences</h5>
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#availabilityPrefsModal">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Working Hours</div>
+                            <div>{{ availability_prefs.min_hours_per_week }} - {{ availability_prefs.max_hours_per_week }} hours/week</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-calendar-event"></i>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Preferred Assignment</div>
+                            <div>{{ availability_prefs.preferred_assignment_duration }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Travel Willingness</div>
+                            <div>{% if availability_prefs.travel_willingness %}Yes{% else %}No{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <i class="bi bi-laptop"></i>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Work Environment</div>
+                            <div>{{ availability_prefs.remote_preference }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments Timeline -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Assignment History</h5>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addAssignmentModal">
+                <i class="bi bi-plus-circle me-1"></i> Add Assignment
+            </button>
+        </div>
+        <div class="card-body">
+            {% if assignments %}
+                <div class="timeline-container">
+                    {% for assignment in assignments|sort(attribute='start_date', reverse=true) %}
+                        <div class="timeline-item">
+                            <div class="timeline-dot" style="{% if assignment.status == 'Active' %}background-color: var(--primary-color);{% elif assignment.status == 'Completed' %}background-color: var(--secondary-color);{% elif assignment.status == 'Planned' %}background-color: #ffc107;{% else %}background-color: #dc3545;{% endif %}"></div>
+                            <div class="card timeline-card">
+                                <div class="card-body">
+                                    <span class="badge {% if assignment.status == 'Active' %}bg-success{% elif assignment.status == 'Completed' %}bg-secondary{% elif assignment.status == 'Planned' %}bg-warning{% else %}bg-danger{% endif %} assignment-status">
+                                        {{ assignment.status }}
+                                    </span>
+                                    <h5 class="card-title mb-1">{{ assignment.project_name }}</h5>
+                                    <h6 class="card-subtitle mb-2 text-muted">{{ assignment.client_name }}</h6>
+                                    
+                                    <div class="d-flex mb-3 text-muted small">
+                                        <div class="me-3">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            {{ assignment.start_date|date }} - {{ assignment.end_date|date }}
+                                        </div>
+                                        <div>
+                                            <i class="bi bi-clock me-1"></i>
+                                            {{ assignment.hours_per_week }} hours/week
+                                        </div>
+                                    </div>
+                                    
+                                    {% if assignment.description %}
+                                        <p class="card-text">{{ assignment.description }}</p>
+                                    {% endif %}
+                                    
+                                    <div class="d-flex justify-content-end mt-3">
+                                        <button class="btn btn-sm btn-outline-primary me-2" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#editAssignmentModal{{ assignment.id }}">
+                                            <i class="bi bi-pencil me-1"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteAssignmentModal{{ assignment.id }}">
+                                            <i class="bi bi-trash me-1"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Edit Assignment Modal -->
+                        <div class="modal fade" id="editAssignmentModal{{ assignment.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <form action="{{ url_for('update_assignment', assignment_id=assignment.id) }}" method="post">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Assignment</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Client Name</label>
+                                                    <input type="text" class="form-control" name="client_name" value="{{ assignment.client_name }}" required>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Project Name</label>
+                                                    <input type="text" class="form-control" name="project_name" value="{{ assignment.project_name }}" required>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Start Date</label>
+                                                    <input type="date" class="form-control" name="start_date" value="{{ assignment.start_date }}" required>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">End Date</label>
+                                                    <input type="date" class="form-control" name="end_date" value="{{ assignment.end_date }}" required>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Hours Per Week</label>
+                                                    <input type="number" class="form-control" name="hours_per_week" value="{{ assignment.hours_per_week }}" min="1" max="40" required>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label">Status</label>
+                                                <select class="form-select" name="status" required>
+                                                    <option value="Active" {% if assignment.status == 'Active' %}selected{% endif %}>Active</option>
+                                                    <option value="Completed" {% if assignment.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                                    <option value="Planned" {% if assignment.status == 'Planned' %}selected{% endif %}>Planned</option>
+                                                    <option value="Cancelled" {% if assignment.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label">Description</label>
+                                                <textarea class="form-control" name="description" rows="3">{{ assignment.description }}</textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Delete Assignment Modal -->
+                        <div class="modal fade" id="deleteAssignmentModal{{ assignment.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Confirm Deletion</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>Are you sure you want to delete this assignment?</p>
+                                        <p><strong>{{ assignment.client_name }}</strong> - {{ assignment.project_name }}</p>
+                                        <p>This action cannot be undone.</p>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <form action="{{ url_for('delete_assignment', assignment_id=assignment.id) }}" method="post">
+                                            <button type="submit" class="btn btn-danger">Delete</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-clipboard2-x fs-1 mb-3 d-block text-muted"></i>
+                    <h5>No Assignments Yet</h5>
+                    <p class="text-muted">This consultant doesn't have any assignments registered.</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAssignmentModal">
+                        <i class="bi bi-plus-circle me-1"></i> Add Assignment
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Assignment Modal -->
+<div class="modal fade" id="addAssignmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('add_assignment', consultant_id=consultant.id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Client Name</label>
+                            <input type="text" class="form-control" name="client_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Project Name</label>
+                            <input type="text" class="form-control" name="project_name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" name="start_date" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" name="end_date" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Hours Per Week</label>
+                            <input type="number" class="form-control" name="hours_per_week" min="1" max="40" value="40" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status" required>
+                            <option value="Active">Active</option>
+                            <option value="Planned">Planned</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Availability Preferences Modal -->
+<div class="modal fade" id="availabilityPrefsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('update_availability_prefs', consultant_id=consultant.id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">Availability Preferences</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Minimum Hours/Week</label>
+                            <input type="number" class="form-control" name="min_hours_per_week" 
+                                   min="1" max="40" value="{{ availability_prefs.min_hours_per_week }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Maximum Hours/Week</label>
+                            <input type="number" class="form-control" name="max_hours_per_week" 
+                                   min="1" max="40" value="{{ availability_prefs.max_hours_per_week }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Preferred Assignment Duration</label>
+                        <select class="form-select" name="preferred_assignment_duration" required>
+                            <option value="Short-term" {% if availability_prefs.preferred_assignment_duration == 'Short-term' %}selected{% endif %}>Short-term (< 3 months)</option>
+                            <option value="Long-term" {% if availability_prefs.preferred_assignment_duration == 'Long-term' %}selected{% endif %}>Long-term (> 3 months)</option>
+                            <option value="Both" {% if availability_prefs.preferred_assignment_duration == 'Both' %}selected{% endif %}>Both</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Remote Preference</label>
+                        <select class="form-select" name="remote_preference" required>
+                            <option value="Remote" {% if availability_prefs.remote_preference == 'Remote' %}selected{% endif %}>Remote</option>
+                            <option value="On-site" {% if availability_prefs.remote_preference == 'On-site' %}selected{% endif %}>On-site</option>
+                            <option value="Hybrid" {% if availability_prefs.remote_preference == 'Hybrid' %}selected{% endif %}>Hybrid</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="travel_willingness" 
+                                   id="travelWillingness" value="1" {% if availability_prefs.travel_willingness %}checked{% endif %}>
+                            <label class="form-check-label" for="travelWillingness">
+                                Willing to travel
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notice Period (weeks)</label>
+                        <input type="number" class="form-control" name="notice_period_weeks" 
+                               min="0" max="12" value="{{ availability_prefs.notice_period_weeks }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Preferences</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -202,6 +202,23 @@
         text-align: center;
         box-shadow: var(--box-shadow);
         flex: 1;
+        transition: var(--transition);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-icon {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+        opacity: 0.85;
+        margin-bottom: 0.5rem;
     }
 
     .stat-number {
@@ -551,6 +568,36 @@
             margin-top: 0.5rem;
         }
     }
+
+    .progress-ring {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .progress-ring-circle-bg {
+        fill: none;
+        stroke: #f0f0f0;
+        stroke-width: 10;
+    }
+
+    .progress-ring-circle {
+        fill: none;
+        stroke: var(--primary-color);
+        stroke-width: 10;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 60px 60px;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+
+    .progress-text {
+        position: absolute;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--primary-color);
+    }
 </style>
 {% endblock %}
 
@@ -579,37 +626,9 @@
         {% endif %}
     {% endwith %}
     
-    <div class="d-flex justify-content-end mb-4">
-        <a href="{{ url_for('upload_page') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i>
-            Meer CV's Uploaden
-        </a>
-    </div>
+   
     
-    <!-- Simple Unified Search Bar -->
-    <div class="search-container mb-4">
-        <form action="{{ url_for('view_candidates') }}" method="get">
-            <div class="input-group">
-                <input type="text" name="q" class="form-control form-control-lg" 
-                       placeholder="Search by name, email or skill..." 
-                       value="{{ search_query }}" list="skillSuggestions" autofocus>
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-search me-1"></i> Search
-                </button>
-                {% if search_query %}
-                <a href="{{ url_for('view_candidates') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-x"></i> Clear
-                </a>
-                {% endif %}
-            </div>
-            <!-- Datalist for skill suggestions -->
-            <datalist id="skillSuggestions">
-                {% for skill in all_skills %}
-                <option value="{{ skill }}">
-                {% endfor %}
-            </datalist>
-        </form>
-    </div>
+    
     
     {% if search_query %}
     <div class="alert alert-info mb-4">
@@ -622,19 +641,50 @@
         <!-- Stats Cards -->
         <div class="stats-container">
             <div class="stat-card">
-                <div class="stat-number" id="totalCandidates">{{ candidates|length }}</div>
+                <i class="bi bi-people-fill stat-icon"></i>
+                <div class="stat-number" id="totalCandidates">{{ total_candidates }}</div>
                 <div class="stat-label">Total Candidates</div>
             </div>
             <div class="stat-card">
+                <i class="bi bi-funnel-fill stat-icon"></i>
                 <div class="stat-number" id="filteredCandidates">{{ candidates|length }}</div>
                 <div class="stat-label">Filtered Results</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ '%.1f'|format(candidates|length / 10) }}</div>
-                <div class="stat-label">Pages</div>
+                <i class="bi bi-file-earmark-code stat-icon"></i>
+                <div class="stat-number">{{ avg_skills_per_candidate }}</div>
+                <div class="stat-label">Avg. Skills per Candidate</div>
+            </div>
+            <div class="stat-card">
+                <i class="bi bi-calendar3 stat-icon"></i>
+                <div class="stat-number">{{ candidates_added_this_month }}</div>
+                <div class="stat-label">Added This Month</div>
             </div>
         </div>
-
+        <!-- Simple Unified Search Bar -->
+        <div class="search-container mb-4">
+            <form action="{{ url_for('view_candidates') }}" method="get">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control form-control-lg" 
+                           placeholder="Search by name, email or skill..." 
+                           value="{{ search_query }}" list="skillSuggestions" autofocus>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search me-1"></i> Search
+                    </button>
+                    {% if search_query %}
+                    <a href="{{ url_for('view_candidates') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x"></i> Clear
+                    </a>
+                    {% endif %}
+                </div>
+                <!-- Datalist for skill suggestions -->
+                <datalist id="skillSuggestions">
+                    {% for skill in all_skills %}
+                    <option value="{{ skill }}">
+                    {% endfor %}
+                </datalist>
+            </form>
+        </div>
         <!-- View Controls -->
         <div class="view-controls">
             <div class="btn-group" role="group" aria-label="View toggle">
@@ -667,7 +717,7 @@
                             <div class="d-flex justify-content-between align-items-start mb-1">
                                 <h5 class="mb-0">{{ candidate.name }}</h5>
                                 <div class="candidate-actions">
-                                    <a href="{{ url_for('view_candidate', candidate_id=candidate.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ url_for('candidate_details', candidate_id=candidate.id) }}" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i>
                                     </a>
                                     <a href="{{ url_for('edit_candidate', candidate_id=candidate.id) }}" class="btn btn-sm btn-outline-secondary">
@@ -837,6 +887,7 @@
             // Functions
             function applyFilters() {
                 const searchTerm = searchInput.value.toLowerCase().trim();
+                const searchTerms = searchTerm.split(/\s+/).filter(term => term.length > 0); // Split by whitespace
                 const candidateCards = document.querySelectorAll('.candidate-card');
                 let matchCount = 0;
                 
@@ -854,7 +905,15 @@
                     const cardText = card.textContent.toLowerCase();
                     
                     // Apply search filter
-                    let isVisible = cardText.includes(searchTerm);
+                    let isVisible = true;
+                    
+                    if (searchTerms.length > 0) {
+                        // Check if ALL search terms are found in the card text
+                        isVisible = searchTerms.every(term => cardText.includes(term));
+                    }
+                    
+                    // Make sure card is visible again when showing it
+                    card.style.display = '';
                     
                     // Apply additional filters (these would need to be implemented with actual data)
                     // For now, we'll just use the search term
@@ -940,6 +999,7 @@
             function updateStats(matchCount, totalCount, searchTerm) {
                 const totalResults = document.getElementById('totalResults');
                 const filteredCandidates = document.getElementById('filteredCandidates');
+                const totalCandidates = document.getElementById('totalCandidates');
                 
                 if (filteredCandidates) {
                     filteredCandidates.textContent = matchCount;
