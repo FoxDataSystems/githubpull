@@ -332,6 +332,9 @@
                 <a href="{{ url_for('view_cv', candidate_id=candidate.id) }}" class="btn btn-primary" target="_blank">
                     <i class="bi bi-eye"></i> View CV
                 </a>
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changeAssignmentModal">
+                    <i class="bi bi-arrow-repeat me-2"></i>Ik wil van opdracht wisselen
+                </button>
                 <form method="post" action="{{ url_for('delete_candidate', candidate_id=candidate.id) }}" id="deleteForm" class="d-inline">
                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
                         <i class="bi bi-trash me-2"></i>Delete
@@ -402,9 +405,15 @@
                         <div class="timeline-item">
                             <div class="timeline-dot"></div>
                             <div class="mb-2">
-                                <h6 class="mb-1">{{ exp.position }}</h6>
-                                <div class="text-muted">{{ exp.company }}</div>
+                                <h6 class="mb-1">{{ exp.company }}</h6>
+                                <div class="text-muted">
+                                    {{ exp.position }} |
+                                    {% if exp.professional_role %}
+                                    <span class="badge bg-secondary ms-2">{{ exp.professional_role }}</span>
+                                    {% endif %}
+                                
                                 <small class="text-muted">{{ exp.start_date }} - {{ exp.end_date }}</small>
+                            </div>
                             </div>
                             <p class="mb-0">{{ exp.description }}</p>
                         </div>
@@ -495,6 +504,30 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger" form="deleteForm">Delete</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Assignment Modal -->
+    <div class="modal fade" id="changeAssignmentModal" tabindex="-1" aria-labelledby="changeAssignmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changeAssignmentModalLabel">Verzoek om van opdracht te wisselen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="changeAssignmentForm" method="post" action="{{ url_for('request_assignment_change', candidate_id=candidate.id) }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="change_reason" class="form-label">Waarom wil je van opdracht wisselen?</label>
+                            <textarea class="form-control" id="change_reason" name="change_reason" rows="4" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                        <button type="submit" class="btn btn-primary">Verzoek indienen</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

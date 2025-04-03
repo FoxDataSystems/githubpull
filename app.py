@@ -15,6 +15,7 @@ import pymssql
 # Import the generate_cv function from cv_generator.py
 from cv_generator import generate_cv
 from collections import defaultdict
+from flask_mail import Mail, Message
 
 # Create a function to establish database connection
 def get_db_connection():
@@ -74,7 +75,8 @@ def initialize_database():
                     phone NVARCHAR(50),
                     cv_text NVARCHAR(MAX),
                     wensen NVARCHAR(MAX),
-                    ambities NVARCHAR(MAX)
+                    ambities NVARCHAR(MAX),
+                    professional_role NVARCHAR(255)
                 )
             END
         """)
@@ -154,6 +156,18 @@ def initialize_database():
             END
         """)
         
+        # Add professional_role column if it doesn't exist
+        cursor.execute("""
+            IF NOT EXISTS (
+                SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'candidates' AND COLUMN_NAME = 'professional_role'
+            )
+            BEGIN
+                ALTER TABLE candidates 
+                ADD professional_role NVARCHAR(255) NULL
+            END
+        """)
+        
         # Normalize existing data
         cursor.execute("""
             UPDATE skills
@@ -173,6 +187,17 @@ def initialize_database():
 
 # Replace the multiple init calls with a single initialization
 initialize_database()
+
+# Initialize at app startup
+mail = Mail(app)
+
+# Configure Flask-Mail with Gmail settings
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'doeielies@gmail.com'
+app.config['MAIL_PASSWORD'] = 'gkeo qhis eicz hezj'  
+app.config['MAIL_DEFAULT_SENDER'] = 'doeielies@gmail.com'
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -200,19 +225,20 @@ def extract_text_from_file(file_path):
     return ""
 
 def get_cv_analysis_prompt(cv_text):
-    return f"""Please analyze this CV text and extract the following information in JSON format. For each certificate, analyze what technologies or skills it represents and add those to the skills section.
+    return f"""Please analyze this CV text and extract the following information in JSON format. Determine the candidate's primary professional role (e.g., Data Engineer, Cloud Consultant) based on their recent experience and overall profile. For each Job listed in the CV, include the full job description exactly as it appears in the CV under work_experience; do not summarize it. Extract skills and add them to the skills section. For each certificate, analyze what technologies or skills it represents and add those to the skills section.
 
     {{
         "name": "candidate's full name",
         "email": "email address",
         "phone": "phone number",
+        "professional_role": "primary job title or role (e.g., Data Engineer, Cloud Consultant)",
         "work_experience": [
             {{
                 "company": "company name",
                 "position": "job title",
                 "start_date": "start date",
                 "end_date": "end date or 'Present'",
-                "description": "job description"
+                "description": "full job description as written in the CV, do not summarize"
             }}
         ],
         "skills": [
@@ -246,8 +272,8 @@ def get_cv_analysis_prompt(cv_text):
     Please ensure for certificates:
     1. Keep the EXACT original name of the certification (do not translate)
     2. Do not use generic terms like "zelfstandig werken" as certificate names
-    4. For Microsoft certifications, use the exact code (e.g., "AZ-900", "DP-600")
-    5. For professional certifications, use the exact name (e.g., "PRINCE2 Foundation", "Scrum Master")
+    3. For Microsoft certifications, use the exact code (e.g., "AZ-900", "DP-600")
+    4. For professional certifications, use the exact name (e.g., "PRINCE2 Foundation", "Scrum Master")
 
     Example of good certificate entries:
     - "Microsoft Azure Data Engineer Associate (DP-203)"
@@ -343,11 +369,15 @@ def save_to_database(cv_data):
             any(char.isalnum() for char in cert_name)  # Must contain at least one alphanumeric character
         )
     
-    # Insert candidate information
+    # Insert candidate information, including professional_role
     cursor.execute(
-        "INSERT INTO candidates (id, name, email, phone, cv_text, wensen, ambities) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        """INSERT INTO candidates 
+           (id, name, email, phone, cv_text, wensen, ambities, professional_role) 
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
         (candidate_id, cv_data.get('name', ''), cv_data.get('email', ''), 
-         cv_data.get('phone', ''), cv_data.get('cv_text', ''), cv_data.get('wensen', ''), cv_data.get('ambities', ''))
+         cv_data.get('phone', ''), cv_data.get('cv_text', ''), 
+         cv_data.get('wensen', ''), cv_data.get('ambities', ''),
+         cv_data.get('professional_role', ''))
     )
     
     # Insert work experience
@@ -739,15 +769,19 @@ def candidate_details(candidate_id):
     conn = get_db_connection()
     cursor = conn.cursor(as_dict=True)
     
-    # Make sure to include wensen and ambities in your SELECT statement
+    # Fetch candidate including professional_role, wensen, and ambities
     cursor.execute("""
-        SELECT id, name, email, phone, cv_text, wensen, ambities, updated_at
+        SELECT id, name, email, phone, cv_text, wensen, ambities, professional_role, updated_at
         FROM candidates 
         WHERE id = %s
     """, (candidate_id,))
     
     candidate = cursor.fetchone()
     
+    if not candidate:
+        flash('Candidate not found', 'error')
+        return redirect(url_for('view_candidates'))
+
     # Fetch other candidate data (skills, work_experience, certificates, etc.)
     cursor.execute("SELECT * FROM work_experience WHERE candidate_id = %s ORDER BY start_date DESC", (candidate_id,))
     work_experience = cursor.fetchall()
@@ -796,19 +830,147 @@ def edit_candidate(candidate_id):
         name = request.form['name']
         email = request.form['email']
         phone = request.form['phone']
-        # Get the new fields
         wensen = request.form.get('wensen', '')
         ambities = request.form.get('ambities', '')
+        professional_role = request.form.get('professional_role', '')
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Update the query to include wensen and ambities
+        # Update the query to include wensen, ambities, and professional_role
         cursor.execute("""
             UPDATE candidates 
-            SET name = %s, email = %s, phone = %s, wensen = %s, ambities = %s, updated_at = GETDATE() 
+            SET name = %s, email = %s, phone = %s, wensen = %s, ambities = %s, 
+                professional_role = %s, updated_at = GETDATE() 
             WHERE id = %s
-        """, (name, email, phone, wensen, ambities, candidate_id))
+        """, (name, email, phone, wensen, ambities, professional_role, candidate_id))
+        
+        # Process work experience updates
+        work_exp_count = int(request.form.get('work_exp_count', 0))
+        
+        # Get existing work experience IDs to track what needs to be deleted
+        cursor.execute("SELECT id FROM work_experience WHERE candidate_id = %s", (candidate_id,))
+        existing_exp_ids = [row[0] for row in cursor.fetchall()]
+        processed_exp_ids = []
+        
+        # Process each work experience entry
+        for i in range(work_exp_count):
+            company = request.form.get(f'company_{i}', '')
+            position = request.form.get(f'position_{i}', '')
+            start_date = request.form.get(f'start_date_{i}', '')
+            end_date = request.form.get(f'end_date_{i}', '')
+            description = request.form.get(f'description_{i}', '')
+            
+            # Get work experience ID if it's an existing entry - using TOP instead of LIMIT for SQL Server
+            exp_id_query = "SELECT TOP 1 id FROM work_experience WHERE candidate_id = %s AND company = %s AND position = %s"
+            cursor.execute(exp_id_query, (candidate_id, company, position))
+            result = cursor.fetchone()
+            exp_id = result[0] if result else None
+            
+            if exp_id:
+                # Update existing entry
+                processed_exp_ids.append(exp_id)
+                cursor.execute("""
+                    UPDATE work_experience
+                    SET company = %s, position = %s, start_date = %s, end_date = %s, description = %s
+                    WHERE id = %s AND candidate_id = %s
+                """, (company, position, start_date, end_date, description, exp_id, candidate_id))
+            else:
+                # Insert new entry
+                cursor.execute("""
+                    INSERT INTO work_experience (candidate_id, company, position, start_date, end_date, description)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (candidate_id, company, position, start_date, end_date, description))
+        
+        # Delete work experience entries that weren't processed
+        for exp_id in existing_exp_ids:
+            if exp_id not in processed_exp_ids:
+                cursor.execute("DELETE FROM work_experience WHERE id = %s", (exp_id,))
+        
+        # Process skills updates
+        skills_count = int(request.form.get('skills_count', 0))
+        
+        # Get existing skill IDs to track what needs to be deleted
+        cursor.execute("SELECT id FROM skills WHERE candidate_id = %s", (candidate_id,))
+        existing_skill_ids = [row[0] for row in cursor.fetchall()]
+        processed_skill_ids = []
+        
+        # Process each skill entry
+        for i in range(skills_count):
+            skill_name = request.form.get(f'skill_name_{i}', '')
+            years_experience = request.form.get(f'years_experience_{i}', 0)
+            
+            # Get skill ID if it's an existing entry - using TOP instead of LIMIT for SQL Server
+            skill_id_query = "SELECT TOP 1 id FROM skills WHERE candidate_id = %s AND skill_name = %s"
+            cursor.execute(skill_id_query, (candidate_id, skill_name))
+            result = cursor.fetchone()
+            skill_id = result[0] if result else None
+            
+            if skill_id:
+                # Update existing skill
+                processed_skill_ids.append(skill_id)
+                cursor.execute("""
+                    UPDATE skills
+                    SET skill_name = %s, years_experience = %s
+                    WHERE id = %s AND candidate_id = %s
+                """, (skill_name, years_experience, skill_id, candidate_id))
+            else:
+                # Insert new skill
+                cursor.execute("""
+                    INSERT INTO skills (candidate_id, skill_name, years_experience, is_starred)
+                    VALUES (%s, %s, %s, %s)
+                """, (candidate_id, skill_name, years_experience, False))
+        
+        # Delete skill entries that weren't processed
+        for skill_id in existing_skill_ids:
+            if skill_id not in processed_skill_ids:
+                cursor.execute("DELETE FROM skills WHERE id = %s", (skill_id,))
+        
+        # Process certificates
+        certificates_count = int(request.form.get('certificates_count', 0))
+        
+        # Get existing certificate IDs
+        cursor.execute("SELECT id FROM certificates WHERE candidate_id = %s", (candidate_id,))
+        existing_cert_ids = [row[0] for row in cursor.fetchall()]
+        processed_cert_ids = []
+        
+        # Process each certificate
+        for i in range(certificates_count):
+            cert_name = request.form.get(f'cert_name_{i}', '')
+            cert_issuer = request.form.get(f'cert_issuer_{i}', '')
+            cert_date_obtained = request.form.get(f'cert_date_obtained_{i}', '')
+            cert_expiry_date = request.form.get(f'cert_expiry_date_{i}', '')
+            cert_description = request.form.get(f'cert_description_{i}', '')
+            
+            # Skip empty certificates
+            if not cert_name.strip():
+                continue
+                
+            # Get certificate ID if it's an existing entry - using TOP instead of LIMIT for SQL Server
+            cert_id_query = "SELECT TOP 1 id FROM certificates WHERE candidate_id = %s AND name = %s"
+            cursor.execute(cert_id_query, (candidate_id, cert_name))
+            result = cursor.fetchone()
+            cert_id = result[0] if result else None
+            
+            if cert_id:
+                # Update existing certificate
+                processed_cert_ids.append(cert_id)
+                cursor.execute("""
+                    UPDATE certificates
+                    SET name = %s, issuer = %s, date_obtained = %s, expiry_date = %s, description = %s
+                    WHERE id = %s AND candidate_id = %s
+                """, (cert_name, cert_issuer, cert_date_obtained, cert_expiry_date, cert_description, cert_id, candidate_id))
+            else:
+                # Insert new certificate
+                cursor.execute("""
+                    INSERT INTO certificates (candidate_id, name, issuer, date_obtained, expiry_date, description)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (candidate_id, cert_name, cert_issuer, cert_date_obtained, cert_expiry_date, cert_description))
+        
+        # Delete certificate entries that weren't processed
+        for cert_id in existing_cert_ids:
+            if cert_id not in processed_cert_ids:
+                cursor.execute("DELETE FROM certificates WHERE id = %s", (cert_id,))
         
         conn.commit()
         conn.close()
@@ -820,14 +982,18 @@ def edit_candidate(candidate_id):
     conn = get_db_connection()
     cursor = conn.cursor(as_dict=True)
     
-    # Fetch the candidate data
+    # Fetch the candidate data including professional_role
     cursor.execute("""
-        SELECT id, name, email, phone, cv_text, wensen, ambities, updated_at
+        SELECT id, name, email, phone, cv_text, wensen, ambities, professional_role, updated_at
         FROM candidates 
         WHERE id = %s
     """, (candidate_id,))
     
     candidate = cursor.fetchone()
+
+    if not candidate:
+        flash('Candidate not found', 'error')
+        return redirect(url_for('view_candidates'))
     
     # Fetch skills - make sure to keep this part
     cursor.execute("""
@@ -861,6 +1027,8 @@ def edit_candidate(candidate_id):
     
     conn.close()
     
+    # Make sure the edit_candidate.html template can handle the professional_role
+    # You'll need to add an input field for it in the template.
     return render_template('edit_candidate.html', 
                           candidate=candidate, 
                           skills=skills, 
@@ -1683,6 +1851,119 @@ def add_candidate():
     """, (candidate_id, name, email, phone, cv_text, wensen, ambities))
     
     # ... existing code ...
+
+@app.route('/request-assignment-change/<string:candidate_id>', methods=['POST'])
+def request_assignment_change(candidate_id):
+    candidate = get_candidate_by_id(candidate_id)
+    if not candidate:
+        flash('Kandidaat niet gevonden', 'error')
+        return redirect(url_for('view_candidates'))
+        
+    change_reason = request.form.get('change_reason')
+    if not change_reason:
+        flash('Voer een reden in voor de opdrachtwisseling', 'error')
+        return redirect(url_for('candidate_details', candidate_id=candidate_id))
+    
+    # Update candidate record to mark assignment change request
+    update_candidate_assignment_request(candidate_id, change_reason)
+    
+    # Send email notification
+    subject = f'Opdrachtwisseling verzoek: {candidate["name"]}'
+    body = f"""
+    Hallo,
+    
+    {candidate["name"]} heeft een verzoek ingediend om van opdracht te wisselen.
+    
+    Reden: {change_reason}
+    
+    Contact informatie:
+    Email: {candidate["email"]}
+    Telefoon: {candidate["phone"]}
+    
+    Je kunt het profiel bekijken via: {url_for('candidate_details', candidate_id=candidate_id, _external=True)}
+    """
+    
+    if send_email(subject, 'ralph.lemaire@wortell.nl', body):
+        flash('Je verzoek is ingediend en er is een email verzonden.', 'success')
+    else:
+        flash('Je verzoek is ingediend, maar er kon geen email worden verzonden.', 'warning')
+    
+    return redirect(url_for('candidate_details', candidate_id=candidate_id))
+
+def update_candidate_assignment_request(candidate_id, change_reason):
+    """
+    Update candidate record to mark assignment change request.
+    This will store the change reason and timestamp in the database.
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # First, check if we need to alter the table to add the columns if they don't exist
+        # This is a safe operation to perform in case the columns don't exist yet
+        try:
+            cursor.execute("""
+                IF NOT EXISTS (SELECT * FROM sys.columns 
+                    WHERE object_id = OBJECT_ID('candidates') AND name = 'change_request_reason')
+                BEGIN
+                    ALTER TABLE candidates ADD change_request_reason NVARCHAR(MAX), 
+                    change_request_date DATETIME
+                END
+            """)
+            conn.commit()
+        except Exception as e:
+            print(f"Error checking/adding columns: {str(e)}")
+            # Continue anyway, the columns might already exist
+            
+        # Now update the candidate record
+        cursor.execute("""
+            UPDATE candidates 
+            SET change_request_reason = %s, 
+                change_request_date = GETDATE(),
+                updated_at = GETDATE()
+            WHERE id = %s
+        """, (change_reason, candidate_id))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error updating candidate assignment request: {str(e)}")
+        return False
+
+@app.route('/test-email')
+def test_email():
+    try:
+        msg = Message('Test Email from Flask App', 
+                     recipients=['ralph.lemaire@wortell.nl'])
+        msg.body = 'This is a test email from your Flask application.'
+        mail.send(msg)
+        return 'Email sent successfully!'
+    except Exception as e:
+        return f'Error sending email: {str(e)}'
+
+def send_email(subject, recipient, body):
+    import smtplib
+    from email.mime.text import MIMEText
+    
+    sender = os.getenv('EMAIL_SENDER')
+    password = os.getenv('EMAIL_PASSWORD')
+    
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = "Wortell-Kandidaat-Portal <ralph@rlemaire.com>"
+    msg['To'] = recipient
+    
+    try:
+        # When using SMTP_SSL, you don't need to call starttls()
+        server = smtplib.SMTP_SSL('smtp.strato.de', 465)
+        server.login(sender, password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
+        return False
 
 if __name__ == '__main__':
     app.run(debug=True)
