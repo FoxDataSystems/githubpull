@@ -181,6 +181,20 @@ def initialize_database():
             WHERE name LIKE N'%–%'
         """)
         
+        # Create work_experience_skills junction table if it doesn't exist
+        cursor.execute("""
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'work_experience_skills')
+            BEGIN
+                CREATE TABLE work_experience_skills (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    work_experience_id INT,
+                    skill_id INT,
+                    FOREIGN KEY (work_experience_id) REFERENCES work_experience (id),
+                    FOREIGN KEY (skill_id) REFERENCES skills (id)
+                )
+            END
+        """)
+        
         conn.commit()
     finally:
         conn.close()
@@ -225,7 +239,7 @@ def extract_text_from_file(file_path):
     return ""
 
 def get_cv_analysis_prompt(cv_text):
-    return f"""Please analyze this CV text and extract the following information in JSON format. Determine the candidate's primary professional role (e.g., Data Engineer, Cloud Consultant) based on their recent experience and overall profile. For each Job listed in the CV, include the full job description exactly as it appears in the CV under work_experience; do not summarize it. Extract skills and add them to the skills section. For each certificate, analyze what technologies or skills it represents and add those to the skills section.
+    return f"""Please analyze this CV text and extract the following information in JSON format. Determine the candidate's primary professional role (e.g., Data Engineer, Cloud Consultant) based on their recent experience and overall profile. For each Job listed in the CV, include the full job description exactly as it appears in the CV under work_experience; do not summarize it. Extract skills and add them to the skills section. For each work experience, identify ALL technologies and skills used in that specific role - be extremely thorough and don't miss any.
 
     {{
         "name": "candidate's full name",
@@ -238,7 +252,8 @@ def get_cv_analysis_prompt(cv_text):
                 "position": "job title",
                 "start_date": "start date",
                 "end_date": "end date or 'Present'",
-                "description": "full job description as written in the CV, do not summarize"
+                "description": "full job description as written in the CV, do not summarize",
+                "technologies_used": ["complete and exhaustive list of ALL technologies, programming languages, frameworks, tools, and methodologies mentioned or implied in this work experience"]
             }}
         ],
         "skills": [
@@ -269,6 +284,9 @@ def get_cv_analysis_prompt(cv_text):
        - CISSP should add "Information Security", "Cybersecurity" to skills
     7. When adding certificate-based skills, set the years_experience to match the time since certification obtained
     8. Ensure no duplicate skills are added (merge and take the highest years of experience if found in multiple sources)
+    9. For technologies_used, extract EVERY SINGLE technology mentioned in the work experience
+    10. Be extremely thorough when identifying technologies in work experience descriptions
+    11. If a technology is mentioned but not included in the general skills section, add it there as well
     Please ensure for certificates:
     1. Keep the EXACT original name of the certification (do not translate)
     2. Do not use generic terms like "zelfstandig werken" as certificate names
@@ -280,6 +298,7 @@ def get_cv_analysis_prompt(cv_text):
     - "AWS Solutions Architect Professional"
     - "PRINCE2 Foundation"
     - "Certified ScrumMaster (CSM)"
+    
 
     CV Text:
     {cv_text}
@@ -302,7 +321,9 @@ def process_cv_response(gpt_response):
     # Process existing skills
     for skill in data.get('skills', []):
         skill_name = skill['skill_name'].lower()
-        years = float(skill.get('years_experience', 0))
+        # Fix the error: ensure years_experience is properly handled if None
+        years_exp = skill.get('years_experience')
+        years = float(years_exp) if years_exp is not None else 0
         skills_dict[skill_name] = max(skills_dict.get(skill_name, 0), years)
     
     # Process skills from certificates
@@ -335,7 +356,7 @@ def analyze_cv_with_ai(cv_text):
     prompt = get_cv_analysis_prompt(cv_text)
     
     response = client.chat.completions.create(
-        model="gpt-4",  # Use the appropriate model available in your Azure OpenAI deployments
+        model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a helpful assistant that extracts structured information from CVs. Use Dutch terms only. Try to extract as many skills as possible. Voeg Standaard skills toe als deze niet in de CV staan. Zoals Analytische vaardigheden, communicatievaardigheden, Nederlands, Engels, zelfstandig werken, etc. Kunstmatige Intelligentie is AI/Artificial Intelligence."},
             {"role": "user", "content": prompt}
@@ -352,24 +373,7 @@ def save_to_database(cv_data):
     
     candidate_id = str(uuid.uuid4())
     
-    # Helper function to validate certificate
-    def is_valid_certificate(cert_name):
-        if not cert_name:
-            return False
-        
-        # List of terms that indicate generic skills rather than certificates
-        generic_terms = {
-            'zelfstandig werken', 'communicatie', 'teamwork', 'leadership',
-            'werken', 'skill', 'competentie', 'vaardigheid'
-        }
-        
-        return (
-            cert_name.lower() not in generic_terms and
-            len(cert_name) > 3 and  # Avoid very short names
-            any(char.isalnum() for char in cert_name)  # Must contain at least one alphanumeric character
-        )
-    
-    # Insert candidate information, including professional_role
+    # Insert candidate information
     cursor.execute(
         """INSERT INTO candidates 
            (id, name, email, phone, cv_text, wensen, ambities, professional_role) 
@@ -380,25 +384,71 @@ def save_to_database(cv_data):
          cv_data.get('professional_role', ''))
     )
     
+    # Dictionary to track skills and their IDs
+    skill_name_to_id = {}
+    
+    # First pass: Insert all skills from the skills section
+    for skill in cv_data.get('skills', []):
+        skill_name = skill.get('skill_name', '').strip()
+        if not skill_name:
+            continue
+            
+        years_exp = skill.get('years_experience', 0)
+        
+        cursor.execute(
+            "INSERT INTO skills (candidate_id, skill_name, years_experience) VALUES (%s, %s, %s); SELECT SCOPE_IDENTITY()",
+            (candidate_id, skill_name, years_exp)
+        )
+        result = cursor.fetchone()
+        skill_id = result[0] if result else None
+        if skill_id:
+            skill_name_to_id[skill_name.lower()] = skill_id
+    
+    # Collect all technologies from work experiences
+    all_technologies = set()
+    for exp in cv_data.get('work_experience', []):
+        for tech in exp.get('technologies_used', []):
+            all_technologies.add(tech.strip())
+    
+    # Second pass: Add any technologies not in skills yet
+    for tech in all_technologies:
+        if tech and tech.lower() not in skill_name_to_id:
+            # Default to 1 year experience if we don't know
+            cursor.execute(
+                "INSERT INTO skills (candidate_id, skill_name, years_experience) VALUES (%s, %s, %s); SELECT SCOPE_IDENTITY()",
+                (candidate_id, tech, 1.0)
+            )
+            result = cursor.fetchone()
+            skill_id = result[0] if result else None
+            if skill_id:
+                skill_name_to_id[tech.lower()] = skill_id
+    
     # Insert work experience
     for exp in cv_data.get('work_experience', []):
         cursor.execute(
-            "INSERT INTO work_experience (candidate_id, company, position, start_date, end_date, description) VALUES (%s, %s, %s, %s, %s, %s)",
+            """INSERT INTO work_experience (candidate_id, company, position, start_date, end_date, description) 
+               VALUES (%s, %s, %s, %s, %s, %s); SELECT SCOPE_IDENTITY()""",
             (candidate_id, exp.get('company', ''), exp.get('position', ''), 
              exp.get('start_date', ''), exp.get('end_date', ''), exp.get('description', ''))
         )
+        result = cursor.fetchone()
+        exp_id = result[0] if result else None
+        
+        # Link technologies used in this work experience
+        if exp_id:
+            for tech in exp.get('technologies_used', []):
+                tech_name = tech.strip().lower()
+                if tech_name in skill_name_to_id:
+                    skill_id = skill_name_to_id[tech_name]
+                    cursor.execute(
+                        "INSERT INTO work_experience_skills (work_experience_id, skill_id) VALUES (%s, %s)",
+                        (exp_id, skill_id)
+                    )
     
-    # Insert skills with normalized names
-    for skill in cv_data.get('skills', []):
-        cursor.execute(
-            "INSERT INTO skills (candidate_id, skill_name, years_experience) VALUES (%s, %s, %s)",
-            (candidate_id, skill.get('skill_name', ''), skill.get('years_experience', 0))
-        )
-    
-    # Insert certificates/trainings with validation
+    # Insert all certificates without validation
     for cert in cv_data.get('certificates', []):
         cert_name = cert.get('name', '').strip()
-        if is_valid_certificate(cert_name):
+        if cert_name:  # Only check that we have a name, no other validation
             cursor.execute("""
                 INSERT INTO certificates (candidate_id, name, issuer, date_obtained, 
                                        expiry_date, description)
@@ -769,7 +819,7 @@ def candidate_details(candidate_id):
     conn = get_db_connection()
     cursor = conn.cursor(as_dict=True)
     
-    # Fetch candidate including professional_role, wensen, and ambities
+    # Fetch candidate data as before
     cursor.execute("""
         SELECT id, name, email, phone, cv_text, wensen, ambities, professional_role, updated_at
         FROM candidates 
@@ -782,10 +832,21 @@ def candidate_details(candidate_id):
         flash('Candidate not found', 'error')
         return redirect(url_for('view_candidates'))
 
-    # Fetch other candidate data (skills, work_experience, certificates, etc.)
+    # Fetch work experience
     cursor.execute("SELECT * FROM work_experience WHERE candidate_id = %s ORDER BY start_date DESC", (candidate_id,))
     work_experience = cursor.fetchall()
     
+    # For each work experience, get the associated technologies
+    for exp in work_experience:
+        cursor.execute("""
+            SELECT s.skill_name 
+            FROM skills s
+            JOIN work_experience_skills wes ON s.id = wes.skill_id
+            WHERE wes.work_experience_id = %s
+        """, (exp['id'],))
+        exp['technologies'] = cursor.fetchall()
+    
+    # Fetch skills and certificates as before
     cursor.execute("SELECT * FROM skills WHERE candidate_id = %s ORDER BY is_starred DESC, years_experience DESC", (candidate_id,))
     skills = cursor.fetchall()
     
@@ -805,7 +866,15 @@ def delete_candidate(candidate_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Delete certificates first
+    # First delete work_experience_skills junction records
+    cursor.execute("""
+        DELETE wes
+        FROM work_experience_skills wes
+        INNER JOIN work_experience we ON wes.work_experience_id = we.id
+        WHERE we.candidate_id = %s
+    """, (candidate_id,))
+    
+    # Then delete certificates
     cursor.execute("DELETE FROM certificates WHERE candidate_id = %s", (candidate_id,))
     
     # Delete skills
@@ -1215,7 +1284,7 @@ def vacancy_match():
         
         # Extract skills from vacancy using Azure OpenAI
         prompt = f"""
-        Extract required skills and experience from this job vacancy.
+        Extract required skills and experience from this job vacancy. Try to extract the most important skills and experience from the vacancy. Try to keep them short and concise. 
         Format the output as JSON with the following structure:
         {{
             "required_skills": [
@@ -1275,7 +1344,7 @@ def vacancy_match():
                             candidate_skills[skill_name] = float(years)
                         except ValueError:
                             candidate_skills[skill_name] = 0
-            
+                
             required_match_score = 0
             required_total = len(vacancy_skills['required_skills'])
             nice_to_have_match_score = 0
@@ -1357,7 +1426,7 @@ def vacancy_match():
                         'skill_name': skill_name,
                         'type': 'Nice to Have',
                         'match': False,
-                        'reason': "Skill not found in candidate's profile."
+                        'reason': "Vaardigheid niet gevonden in kandidaat's profiel."
                     })
             
             # Calculate percentages

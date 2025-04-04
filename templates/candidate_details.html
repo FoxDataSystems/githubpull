@@ -411,11 +411,21 @@
                                     {% if exp.professional_role %}
                                     <span class="badge bg-secondary ms-2">{{ exp.professional_role }}</span>
                                     {% endif %}
-                                
+                                </div>
                                 <small class="text-muted">{{ exp.start_date }} - {{ exp.end_date }}</small>
                             </div>
-                            </div>
                             <p class="mb-0">{{ exp.description }}</p>
+                            
+                            {% if exp.technologies %}
+                            <div class="mt-2">
+                                <small class="text-muted">Technologies used:</small>
+                                <div>
+                                    {% for tech in exp.technologies %}
+                                        <span class="skill-badge">{{ tech.skill_name }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 </div>
